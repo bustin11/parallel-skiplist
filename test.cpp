@@ -207,7 +207,7 @@ bool test11(int numThreads, int testID) {
     return true;
 }
 
-bool test12() {
+bool test12(int numThreads, int testID) {
 
     printf("Test 12[remove half (medium)]: \n");
     srand(time(NULL));
