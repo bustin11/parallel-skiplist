@@ -12,7 +12,7 @@
 #include "debug.h"
 
 
-bool test1() {
+bool test1(int numThreads, int testID) {
 
     printf("Test 1[Simple]: \n");
 
@@ -27,7 +27,7 @@ bool test1() {
     return v;
 }
 
-bool test2() {
+bool test2(int numThreads, int testID) {
 
     printf("Test 2[2 insertions at front]: \n");
 
@@ -43,7 +43,7 @@ bool test2() {
     return v;
 }
  
-bool test3() {
+bool test3(int numThreads, int testID) {
 
     printf("Test 3[2 insertions at back]: \n");
 
@@ -59,7 +59,7 @@ bool test3() {
     return v;
 }
 
-bool test4() {
+bool test4(int numThreads, int testID) {
     printf("Test 4[3 insertions in the middle]: \n");
     SkipList* slist = new SkipList();
     slist->insert_with_height(2, 1);
@@ -71,7 +71,7 @@ bool test4() {
     return v;
 }
 
-bool test5() {
+bool test5(int numThreads, int testID) {
 
     printf("Test 5[insertions insertions randomly (small)]: \n");
     srand(time(NULL));
@@ -93,7 +93,7 @@ bool test5() {
     return true;
 }
 
-bool test6() {
+bool test6(int numThreads, int testID) {
     printf("Test 6[insertions insertions randomly (big)]: \n");
     srand(time(NULL));
     SkipList* slist = new SkipList();
@@ -114,7 +114,7 @@ bool test6() {
     return true;
 }
 
-bool test7() {
+bool test7(int numThreads, int testID) {
     printf("Test 7[Simple]: \n");
 
     SkipList* slist = new SkipList();
@@ -132,7 +132,7 @@ bool test7() {
     return v;
 }
 
-bool test8() {
+bool test8(int numThreads, int testID) {
 
     printf("Test 8[remove at front]: \n");
 
@@ -150,7 +150,7 @@ bool test8() {
     return v;
 }
 
-bool test9() {
+bool test9(int numThreads, int testID) {
 
     printf("Test 9[remove at back]: \n");
 
@@ -168,7 +168,7 @@ bool test9() {
     return v;
 }
 
-bool test10() {
+bool test10(int numThreads, int testID) {
     printf("Test 10[1 removal in the middle]: \n");
     SkipList* slist = new SkipList();
     slist->insert_with_height(2, 1);
@@ -182,7 +182,7 @@ bool test10() {
     return v;
 }
 
-bool test11() {
+bool test11(int numThreads, int testID) {
 
     printf("Test 11[remove half (small)]: \n");
     srand(time(NULL));
