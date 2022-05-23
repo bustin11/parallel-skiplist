@@ -9,7 +9,6 @@
 #include <assert.h>
 #include <algorithm>
 #include <stack>
-#include <queue>
 #include <functional>
 
 #include "debug.h"
