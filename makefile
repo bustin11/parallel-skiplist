@@ -8,7 +8,7 @@ OBJDIR=objs
 TEST_SOURCES=$(TESTDIR)/checker.cpp $(TESTDIR)/test.cpp
 TEST_OBJS=$(TEST_SOURCES:$(TESTDIR)/%.cpp=$(OBJDIR)/%.o)
 
-# EXECUTABLE=run
+# EXECUTABLE=main
 
 .PHONY: dir clean
 
@@ -18,6 +18,8 @@ default: $(EXECUTABLE)
 dirs:
 	mkdir -p $(OBJDIR)/
 
+test: ADD_ARGS=-g
+
 test: dirs $(TEST_OBJS) $(OBJDIR)/skiplist.o
 	$(CXX) $(CXXFLAGS) -o $@ $(TEST_OBJS) $(OBJDIR)/skiplist.o
 
@@ -25,10 +27,10 @@ test: dirs $(TEST_OBJS) $(OBJDIR)/skiplist.o
 # 	$(CXX) $(CXXFLAGS) -o $@ $(OBJS)
 
 $(OBJDIR)/%.o: $(TESTDIR)/%.cpp
-	$(CXX) $< $(CXXFLAGS) -c -o $@
+	$(CXX) $< $(CXXFLAGS) $(ADD_ARGS) -c -o $@
 
 $(OBJDIR)/skiplist.o: skiplist.cpp
-	$(CXX) $< $(CXXFLAGS) -c -o $@
+	$(CXX) $< $(CXXFLAGS) $(ADD_ARGS) -c -o $@
 
 
 $(TEST_SOURCES) : skiplist.h tests/test.h
@@ -45,4 +47,4 @@ skiplist.cpp : skiplist.h
 
 
 clean:
-	/bin/rm -rf *~ $(OBJDIR) $(EXECUTABLE) *.class
+	/bin/rm -rf *~ $(OBJDIR) test *.class
