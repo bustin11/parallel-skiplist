@@ -5,3 +5,4 @@
 !makefile
 objs/
 .vscode
+perf*
