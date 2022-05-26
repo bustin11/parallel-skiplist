@@ -51,9 +51,9 @@ void SkipList::search_prev (item_t item, std::stack<Node*>& predecessors) {
     for (int i=numRight-1; i>=0; i--) {
         Node* curr = this->head; // top-left
         Node* currRight = curr->right[i];
-        while (currRight && item >= currRight->item) {
+        while (currRight && item >= currRight->item) { // currRight->item hottest instruction
             curr = currRight;
-            currRight = curr->right[i];
+            currRight = curr->right[i]; // 2nd hottest instruction
         }
         predecessors.push(curr);
     }
@@ -136,45 +136,47 @@ void SkipList::remove (item_t item) {
 
 void SkipList::printList (){
 
-    // find the offsets for printing based on level 0
-    std::vector<std::pair<int, Node*>> offsets;
-    Node* curr = this->head->right[0];
-    int offset = 0;
-    while (curr) {
-        offsets.push_back(std::make_pair(offset, curr));
-        std::string itemstr = node2str(curr);
-        offset += (int)(itemstr.length() + 1);
-        curr = curr->right[0];
-    }
-
-    int numOffsets = (int) offsets.size();
-    int numRight = (int) this->head->right.size();
-\
-    for (int i=numRight-1; i>=0; i--) { // horizontal
-        curr = this->head->right[i];
-        int p = 0;
-        int prevLength = 0;
-        for (int j=0; j<numOffsets; j++) { // vertical
-            if (offsets[j].second == curr) {
-                // find difference, subtract for spaces, subtract prevLength
-                // because that doesn't count towards the dashes
-                int numDashes = offsets[j].first-offsets[p].first-prevLength;
-                if (numDashes > 2) {
-                    printf(" ");
-                    for (int k=0; k<numDashes-2; k++) printf("-");
-                    printf(" ");
-                } else {
-                    for (int k=0; k<numDashes; k++) printf(" ");
-                }
-                
-                std::string itemstr = node2str(curr);
-                printf("%s", itemstr.c_str());
-                curr = curr->right[i];
-                p = j;
-                prevLength = (int)(itemstr.length());
-            } 
+    if (DEBUG) {
+        // find the offsets for printing based on level 0
+        std::vector<std::pair<int, Node*>> offsets;
+        Node* curr = this->head->right[0];
+        int offset = 0;
+        while (curr) {
+            offsets.push_back(std::make_pair(offset, curr));
+            std::string itemstr = node2str(curr);
+            offset += (int)(itemstr.length() + 1);
+            curr = curr->right[0];
         }
-        printNewLine();
+
+        int numOffsets = (int) offsets.size();
+        int numRight = (int) this->head->right.size();
+    \
+        for (int i=numRight-1; i>=0; i--) { // horizontal
+            curr = this->head->right[i];
+            int p = 0;
+            int prevLength = 0;
+            for (int j=0; j<numOffsets; j++) { // vertical
+                if (offsets[j].second == curr) {
+                    // find difference, subtract for spaces, subtract prevLength
+                    // because that doesn't count towards the dashes
+                    int numDashes = offsets[j].first-offsets[p].first-prevLength;
+                    if (numDashes > 2) {
+                        print(" ");
+                        for (int k=0; k<numDashes-2; k++) printf("-");
+                        printf(" ");
+                    } else {
+                        for (int k=0; k<numDashes; k++) printf(" ");
+                    }
+                    
+                    std::string itemstr = node2str(curr);
+                    printf("%s", itemstr.c_str());
+                    curr = curr->right[i];
+                    p = j;
+                    prevLength = (int)(itemstr.length());
+                } 
+            }
+            printNewLine();
+        }
     }
 }
 
