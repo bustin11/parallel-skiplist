@@ -1,11 +1,14 @@
 CXX=g++ -m64 -std=c++20
 # add -O3, -g for debugging, -ggdb for perf, -fopenmp for openMP
-CXXFLAGS=-ggdb -Wall -Wno-unknown-pragmas
+CXXFLAGS=-Wall -Wno-unknown-pragmas
 LDFLAGS=
-SOURCES=main.cpp skiplist.cpp test.cpp
+TESTDIR=tests
 OBJDIR=objs
-OBJS=$(SOURCES:%.cpp=$(OBJDIR)/%.o)
-EXECUTABLE=main
+
+TEST_SOURCES=$(TESTDIR)/checker.cpp $(TESTDIR)/test.cpp
+TEST_OBJS=$(TEST_SOURCES:$(TESTDIR)/%.cpp=$(OBJDIR)/%.o)
+
+# EXECUTABLE=run
 
 .PHONY: dir clean
 
@@ -15,13 +18,24 @@ default: $(EXECUTABLE)
 dirs:
 	mkdir -p $(OBJDIR)/
 
-$(EXECUTABLE): dirs $(OBJS)
-	$(CXX) $(CXXFLAGS) -o $@ $(OBJS)
+test: dirs $(TEST_OBJS) $(OBJDIR)/skiplist.o
+	$(CXX) $(CXXFLAGS) -o $@ $(TEST_OBJS) $(OBJDIR)/skiplist.o
 
-$(OBJDIR)/%.o: %.cpp
+# $(EXECUTABLE): dirs $(OBJS)
+# 	$(CXX) $(CXXFLAGS) -o $@ $(OBJS)
+
+$(OBJDIR)/%.o: $(TESTDIR)/%.cpp
 	$(CXX) $< $(CXXFLAGS) -c -o $@
 
-$(SOURCES) : skiplist.h
+$(OBJDIR)/skiplist.o: skiplist.cpp
+	$(CXX) $< $(CXXFLAGS) -c -o $@
+
+
+$(TEST_SOURCES) : skiplist.h tests/test.h
+
+skiplist.cpp : skiplist.h
+
+
 
 # implicit rule
 # %.o: %.cpp
