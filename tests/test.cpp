@@ -12,7 +12,7 @@
 #include "../debug.h"
 
 
-bool test1(int numThreads, int testID) {
+bool test1(int testID) {
 
     printf("Test 1[Simple]: \n");
 
@@ -27,7 +27,7 @@ bool test1(int numThreads, int testID) {
     return v;
 }
 
-bool test2(int numThreads, int testID) {
+bool test2(int testID) {
 
     printf("Test 2[2 insertions at front]: \n");
 
@@ -43,7 +43,7 @@ bool test2(int numThreads, int testID) {
     return v;
 }
  
-bool test3(int numThreads, int testID) {
+bool test3(int testID) {
 
     printf("Test 3[2 insertions at back]: \n");
 
@@ -59,7 +59,7 @@ bool test3(int numThreads, int testID) {
     return v;
 }
 
-bool test4(int numThreads, int testID) {
+bool test4(int testID) {
     printf("Test 4[3 insertions in the middle]: \n");
     SkipList* slist = new SkipList();
     slist->insert_with_height(2, 1);
@@ -71,7 +71,7 @@ bool test4(int numThreads, int testID) {
     return v;
 }
 
-bool test5(int numThreads, int testID) {
+bool test5(int testID) {
 
     printf("Test 5[insertions insertions randomly (small)]: \n");
     srand(time(NULL));
@@ -93,7 +93,7 @@ bool test5(int numThreads, int testID) {
     return true;
 }
 
-bool test6(int numThreads, int testID) {
+bool test6(int testID) {
     printf("Test 6[insertions insertions randomly (big)]: \n");
     srand(time(NULL));
     SkipList* slist = new SkipList();
@@ -114,7 +114,7 @@ bool test6(int numThreads, int testID) {
     return true;
 }
 
-bool test7(int numThreads, int testID) {
+bool test7(int testID) {
     printf("Test 7[Simple]: \n");
 
     SkipList* slist = new SkipList();
@@ -132,7 +132,7 @@ bool test7(int numThreads, int testID) {
     return v;
 }
 
-bool test8(int numThreads, int testID) {
+bool test8(int testID) {
 
     printf("Test 8[remove at front]: \n");
 
@@ -150,7 +150,7 @@ bool test8(int numThreads, int testID) {
     return v;
 }
 
-bool test9(int numThreads, int testID) {
+bool test9(int testID) {
 
     printf("Test 9[remove at back]: \n");
 
@@ -168,7 +168,7 @@ bool test9(int numThreads, int testID) {
     return v;
 }
 
-bool test10(int numThreads, int testID) {
+bool test10(int testID) {
     printf("Test 10[1 removal in the middle]: \n");
     SkipList* slist = new SkipList();
     slist->insert_with_height(2, 1);
@@ -182,7 +182,7 @@ bool test10(int numThreads, int testID) {
     return v;
 }
 
-bool test11(int numThreads, int testID) {
+bool test11(int testID) {
 
     printf("Test 11[remove half (small)]: \n");
     srand(time(NULL));
@@ -207,7 +207,7 @@ bool test11(int numThreads, int testID) {
     return true;
 }
 
-bool test12(int numThreads, int testID) {
+bool test12(int testID) {
 
     printf("Test 12[remove half (medium)]: \n");
     srand(time(NULL));
