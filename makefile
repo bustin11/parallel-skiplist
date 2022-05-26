@@ -1,6 +1,6 @@
 CXX=g++ -m64 -std=c++20
-# add -O3 and remove -g for non-debugging
-CXXFLAGS=-g -Wall -Wno-unknown-pragmas
+# add -O3, -g for debugging, -ggdb for perf, -fopenmp for openMP
+CXXFLAGS=-ggdb -Wall -Wno-unknown-pragmas
 LDFLAGS=
 SOURCES=main.cpp skiplist.cpp test.cpp
 OBJDIR=objs
