@@ -1,6 +1,6 @@
 
 #include "omp.h"
-#include "skiplist.h"
+#include "../skiplist.h"
 
 #include <stdlib.h>
 #include <time.h>

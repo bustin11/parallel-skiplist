@@ -1,6 +1,4 @@
 
-#include "skiplist.h"
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
@@ -11,7 +9,16 @@
 #include <stack>
 #include <functional>
 
-#include "debug.h"
+#include "skiplist.h"
+#include "helpers/debug.h"
+
+#if OMP==1
+#include "omp.h"
+#else
+#define omp_init_lock
+#define omp_set_lock
+#define omp_unset_lock
+#endif
 
 std::string item2str (item_t item) {
     return std::to_string(item);
@@ -30,6 +37,7 @@ SkipList::SkipList() {
     srand(time(NULL));
     this->head = new Node(); // starting dummy node
     this->head->right.push_back(nullptr);
+    omp_init_lock(&this->lock);
 }
 
 SkipList::~SkipList() {
@@ -44,7 +52,7 @@ SkipList::~SkipList() {
 }
 
 
-void SkipList::search_prev (item_t item, std::stack<Node*>& predecessors) {
+void SkipList::search_prev (item_t item, std::stack<Node*>& predecessors) const {
 
     int numRight = (int)(this->head->right.size());
     for (int i=numRight-1; i>=0; i--) {
@@ -59,7 +67,7 @@ void SkipList::search_prev (item_t item, std::stack<Node*>& predecessors) {
     // printdebugfmt("pred.size()=%d", (int)predecessors.size())
 }
 
-bool SkipList::search (item_t item) {
+bool SkipList::search (item_t item) const {
 
     std::stack<Node*> A;
     search_prev(item, A);
@@ -71,6 +79,7 @@ bool SkipList::search (item_t item) {
 
 void SkipList::insert_with_height (item_t item, size_t height) {
 
+    omp_set_lock(&this->lock);
     std::stack<Node*> predecessors; // NOTE: first element is the newest element
     search_prev(item, predecessors);
     ASSERT(predecessors.size() == this->head->right.size());
@@ -107,6 +116,7 @@ void SkipList::insert_with_height (item_t item, size_t height) {
                     || (height == 0 && (float)rand() / RAND_MAX < .5f)); // random
 
     printdebugfmt("Inserted %s with height=%d", item2str(item).c_str(), ancestor);
+    omp_unset_lock(&this->lock);
 
 }
 
@@ -118,6 +128,8 @@ void SkipList::insert (item_t item) {
 
 
 void SkipList::remove (item_t item) {
+
+    omp_set_lock(&this->lock);
     std::stack<Node*> predecessors; // NOTE: first element is the newest element
     search_prev(item, predecessors);
     Node* curr = predecessors.top();
@@ -130,6 +142,7 @@ void SkipList::remove (item_t item) {
         }
     }
     delete curr;
+    omp_unset_lock(&this->lock);
 }
 
 

@@ -1,6 +1,6 @@
 
 #include "problems.h"
-#include "skiplist.h"
+#include "../skiplist.h"
 
 #include <stdio.h>
 #include <assert.h>
@@ -47,5 +47,5 @@ int main(int argc, char** argv) {
 
     prob1(mainArgs.numThreads);
 
-    printf("All Tests Passed!\n");
+    printf("Done.\n");
 }

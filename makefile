@@ -2,54 +2,54 @@ CXX=g++ -m64 -std=c++20
 # add -O3, -g for debugging, -ggdb for perf, -fopenmp for openMP
 CXXFLAGS=-Wall -Wno-unknown-pragmas
 LDFLAGS=
-OBJDIR=objs
 
 # comment out later
 ADD_ARGS=-g
-MAIN_SOURCES=main.cpp problems.cpp
-MAIN_OBJS=$(MAIN_SOURCES:%.cpp=$(OBJDIR)/%.o)
+
+MAINDIR=src
+MAIN_SOURCES=$(wildcard $(MAINDIR)/*.cpp)
+MAIN_OBJS=$(MAIN_SOURCES:$(MAINDIR)/%.cpp=$(MAINDIR)/%.o)
 MAIN=main # executable
 
 TESTDIR=tests
-TEST_SOURCES=$(TESTDIR)/checker.cpp $(TESTDIR)/test.cpp
-TEST_OBJS=$(TEST_SOURCES:$(TESTDIR)/%.cpp=$(OBJDIR)/%.o)
+TEST_SOURCES=$(wildcard $(TESTDIR)/*.cpp)
+TEST_OBJS=$(TEST_SOURCES:$(TESTDIR)/%.cpp=$(TESTDIR)/%.o)
 TEST=test
 
-.PHONY: dir clean
-
+.PHONY: clean
 
 default: $(MAIN)
 
-dirs:
-	mkdir -p $(OBJDIR)/
+# ================= test ======================
+$(TEST): ADD_ARGS=-g -D"OMP=0"
 
-$(TEST): ADD_ARGS=-g
+$(TEST): $(TEST_OBJS) $(TESTDIR)/skiplist.o
+	$(CXX) $(CXXFLAGS) -o $(TESTDIR)/$@ $(TEST_OBJS) $(ADD_ARGS) $(TESTDIR)/skiplist.o
 
-$(MAIN): ADD_ARGS=-fopenmp
-
-
-$(TEST): dirs $(TEST_OBJS) $(OBJDIR)/skiplist.o
-	$(CXX) $(CXXFLAGS) -o $@ $(TEST_OBJS) $(ADD_ARGS) $(OBJDIR)/skiplist.o
-
-$(MAIN): dirs $(MAIN_OBJS) $(OBJDIR)/skiplist.o
-	$(CXX) $(CXXFLAGS) -o $@ $(MAIN_OBJS) $(ADD_ARGS) $(OBJDIR)/skiplist.o
-
-
-$(OBJDIR)/%.o: $(TESTDIR)/%.cpp
+$(TESTDIR)/%.o: $(TESTDIR)/%.cpp
 	$(CXX) $< $(CXXFLAGS) $(ADD_ARGS) -c -o $@
 
-$(OBJDIR)/%.o: %.cpp
+$(TESTDIR)/skiplist.o: skiplist.cpp
 	$(CXX) $< $(CXXFLAGS) $(ADD_ARGS) -c -o $@
 
-$(OBJDIR)/skiplist.o: skiplist.cpp
+# ================= main ======================
+$(MAIN): ADD_ARGS=-fopenmp -D"OMP=1"
+
+$(MAIN): $(MAIN_OBJS) $(MAINDIR)/skiplist.o
+	$(CXX) $(CXXFLAGS) -o $(MAINDIR)/$@ $(MAIN_OBJS) $(ADD_ARGS) $(MAINDIR)/skiplist.o
+
+$(MAINDIR)/%.o: $(MAINDIR)/%.cpp
 	$(CXX) $< $(CXXFLAGS) $(ADD_ARGS) -c -o $@
 
+$(MAINDIR)/skiplist.o: skiplist.cpp
+	$(CXX) $< $(CXXFLAGS) $(ADD_ARGS) -c -o $@
 
-$(TEST_SOURCES) : skiplist.h tests/test.h
+# ================= headers ======================
+$(TEST) : skiplist.h tests/test.h helpers/debug.h
 
-$(MAIN_SOURCES) : skiplist.h problems.h
+$(MAIN) : skiplist.h src/problems.h
 
-skiplist.cpp : skiplist.h
+skiplist.cpp : skiplist.h helpers/debug.h
 
 
 
@@ -61,4 +61,5 @@ skiplist.cpp : skiplist.h
 
 
 clean:
-	/bin/rm -rf *~ $(OBJDIR) test *.class main
+	/bin/rm -rf *~ $(TESTDIR)/$(TEST) $(MAINDIR)/$(MAIN) \
+	$(TESTDIR)/*.o $(MAINDIR)/*.o

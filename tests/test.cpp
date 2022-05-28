@@ -9,7 +9,7 @@
 #include <memory>
 
 
-#include "../debug.h"
+#include "../helpers/debug.h"
 
 
 bool test1(int testID) {
