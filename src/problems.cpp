@@ -8,34 +8,42 @@
 
 void prob1(int numThreads) {
     srand(time(NULL));
-    SkipList* slist = new SkipList();
     omp_set_num_threads(numThreads);
     int size = 10000;
-    double startTime;
-    double endTime;
-    std::vector<key_t> A;
-    for (int i=0; i<size; i++) {
-        A.push_back(rand() % size);
-        slist->insert(rand() % size);
-    }
+    double insert_avgTime = 0;
+    double delete_avgTime = 0;
 
-    // insertions
-    startTime = omp_get_wtime();
-    #pragma omp parallel for schedule(static) shared(size)
-    for (int i=0; i<size; i++) {
-        slist->insert(A[i]);
-    }
-    endTime = omp_get_wtime();
-    printf("[%d insertions]: %f\n", size, endTime-startTime);
+    for (int j=0; j<3; j++) {
+        printf("%d\n", j+1);
+        SkipList* slist = new SkipList();
+        std::vector<key_t> A;
+        for (int i=0; i<size; i++) {
+            A.push_back(rand() % size);
+            slist->insert(rand() % size);
+        }
 
-    // deletions 
-    startTime = omp_get_wtime();
-    #pragma omp parallel for schedule(static) shared(size)
-    for (int i=0; i<size; i++) {
-        slist->remove(A[i]);
-    }
-    endTime = omp_get_wtime();
-    printf("[%d deletions]: %f\n", size, endTime-startTime);
+        // insertions
+        double first = omp_get_wtime();
+        #pragma omp parallel for schedule(static) shared(size)
+        for (int i=0; i<size; i++) {
+            slist->insert(A[i]);
+        }
+        double second = omp_get_wtime();
+        insert_avgTime += second - first;
 
-    delete slist;
+        // deletions 
+        first = 0;
+        second = 0;
+        first = omp_get_wtime();
+        #pragma omp parallel for schedule(static) shared(size)
+        for (int i=0; i<size; i++) {
+            slist->remove(A[i]);
+        }
+        second = omp_get_wtime();
+        delete_avgTime += second - first;
+        delete slist;
+    }
+    printf("[%d insertions (3x avg)]: %f\n", size, (insert_avgTime) / 3);
+    printf("[%d deletions] (3x avg): %f\n", size, (delete_avgTime) / 3);
+
 }
