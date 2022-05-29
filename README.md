@@ -29,3 +29,12 @@ Follow this [youtube link from Geometry Lab](https://www.youtube.com/watch?v=NDG
 
 The skiplist is able to achieve these marks because it uses layers/levels of linked list (visually) stacked on top of each other for *skipping* sections of a normal linked list (which has linear time search), and thus tries to emulate the methodology behind *binary search*.
 
+# Coarse-Grain Locking
+Coarse-Grain is an adjective that describes something that is granular but still rough in texture. In the context of locking, a **coarse-grain** lock locks the entire data structure itself. For example, say there are 1 threads, t0 and t1. If t0 and t1 one both want to insert an element, and t1 gets the lock first, then t0 will have to wait until t1 unsets the lock before access to **any** part of the data structure. This is in constrast to **fine-grain** locking. 
+
+Coarse-grain locking is easy to implement since we just place a big ol' lock over the data structure access itself. For few threads and infrequent accesses, coarse-grain can be worth the small downside of slower access times (than fine-grain) for a very easy implementation. 
+
+Here are some of my observations:
+
+## Problem Size
+![problem size image](imgs/coarse-grain-problem-output.png)
