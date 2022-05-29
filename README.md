@@ -39,6 +39,6 @@ Here are some of my observations:
 ## Problem Size
 | ![](imgs/coarse-grain-problem-output.png) |
 |:--:|
-|*# of threads = 1*|
+|*# of threads = 1, units are in seconds*|
 
 You see here that coarse grain does not scale very well with problem size. The jump from 10k to 20k insertions is higher (relatively speaking) than 20k to 30k, but for companies that require a skiplist with high scalability with regards to data size, coarse-grain will not cut it. Thus, for the sake of a shorter README, we will not be showing the performance relative to *number of threads* (in fact the performance is actually worse since the overhead of acquring the lock, and the blocking of other threads accessing the list, does not lend itself to high parallelism)
