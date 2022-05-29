@@ -8,3 +8,4 @@ objs/
 perf*
 src/*.o
 tests/*.o
+imgs/
