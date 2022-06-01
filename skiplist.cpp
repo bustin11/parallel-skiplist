@@ -1,169 +1,227 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <time.h>
 #include <vector>
 #include <string>
 #include <assert.h>
 #include <algorithm>
-#include <stack>
 #include <functional>
 
 #include "skiplist.h"
 #include "helpers/debug.h"
+#include "helpers/helpers.h"
 
-#if OMP==1
-#include "omp.h"
-#else
-#define omp_init_lock
-#define omp_set_lock
-#define omp_unset_lock
-#endif
-
-std::string item2str (item_t item) {
-    return std::to_string(item);
-}
-
-std::string node2str (Node* node) {
-    ASSERT(node);
-    return item2str(node->item);
-}
-
-void printNode(Node* node) {
-    printargs("%s", node2str(node).c_str());
-}
 
 SkipList::SkipList() {
-    srand(time(NULL));
-    this->head = new Node(); // starting dummy node
-    this->head->right.push_back(nullptr);
-    omp_init_lock(&this->lock);
+    this->head = new Node(INT32_MIN, this->MAX_LEVEL); // starting dummy node
+    this->head->next[0] = nullptr;
 }
 
 SkipList::~SkipList() {
 
-    Node* curr = this->head->right[0];
+    Node* curr = this->head->next[0];
     delete this->head;
     while (curr) {
-        Node* right = curr->right[0];
+        Node* right = curr->next[0];
+        omp_destroy_lock(&curr->lock);
         delete curr;
         curr = right;
     }
 }
 
+int SkipList::search_prev (key_t key, 
+                            std::vector<Node*>& preds,
+                            std::vector<Node*>& succs) const {
 
-void SkipList::search_prev (item_t item, std::stack<Node*>& predecessors) const {
+    Node* prev = this->head;
+    int numOfLevels = static_cast<int>(this->head->next.size());
+    int heightOfInsertion = static_cast<int>(preds.size());
+    int keyFound = -1;
 
-    int numRight = (int)(this->head->right.size());
-    for (int i=numRight-1; i>=0; i--) {
-        Node* curr = this->head; // top-left
-        Node* currRight = curr->right[i];
-        while (currRight && item >= currRight->item) {
-            curr = currRight;
-            currRight = curr->right[i];
+    for (int i=numOfLevels-1; i>=0; i--) {
+        Node* curr = prev->next[i];
+        while (curr && key > curr->key) {
+            prev = curr;
+            curr = prev->next[i];
         }
-        predecessors.push(curr);
+        if (keyFound < 0 && curr && key == curr->key) {
+            keyFound = i;
+        }
+        if (i < heightOfInsertion) {
+            preds[i] = prev;
+            succs[i] = curr;
+        }
     }
-    // printdebugfmt("pred.size()=%d", (int)predecessors.size())
+
+    return keyFound;
 }
 
-bool SkipList::search (item_t item) const {
+// TODO: make this thread safe
+bool SkipList::search (key_t key) const {
 
-    std::stack<Node*> A;
-    search_prev(item, A);
-    ASSERT(A.top());
-    Node* curr = A.top();
-    return curr && curr->item == item;
+    std::vector<Node*> A(this->MAX_LEVEL); // not use :(
+    std::vector<Node*> B(this->MAX_LEVEL);
+    int found = this->search_prev(key, A, B);
+    return found >= 0 && B[0] 
+        && B[0]->key == key && B[0]->is_fully_linked()
+        && !B[0]->is_marked();
+
 }
 
+bool SkipList::insert (key_t key) {
 
-void SkipList::insert_with_height (item_t item, size_t height) {
+    int insertedHeight = randomHeight(this->MAX_LEVEL);
+    std::vector<Node*> preds(insertedHeight); // index 0: lowest 
+    std::vector<Node*> succs(insertedHeight); // index 0: lowest 
 
-    omp_set_lock(&this->lock);
-    std::stack<Node*> predecessors; // NOTE: first element is the newest element
-    search_prev(item, predecessors);
-    ASSERT(predecessors.size() == this->head->right.size());
-    int ancestor = 0;
+    while (true) {
 
-    Node* hatNode = new Node();
-    hatNode->item = item;
-    do {
-        // left and right
-        Node* onTheLeft;
-        Node* onTheRight;
-        bool addingNewLevel = (ancestor >= (int) this->head->right.size());
-
-        if (!predecessors.empty()) {
-            onTheLeft = predecessors.top();
-            predecessors.pop();
-            onTheRight = !addingNewLevel ? 
-                                onTheLeft->right[ancestor] : nullptr;
-        } else {
-            // this creates a new level
-            onTheLeft = this->head;
-            onTheRight = nullptr;
+        int found = search_prev(key, preds, succs);
+        if (found >= 0) {
+            Node* nodeFound = succs[found];
+            if (nodeFound && !nodeFound->is_marked()) {
+                while (!nodeFound->is_fully_linked()) {}
+                return false;
+            } else {
+                continue;
+            }
         }
 
-        hatNode->left.push_back(onTheLeft);
-        if (addingNewLevel) onTheLeft->right.push_back(hatNode);
-        else onTheLeft->right[ancestor] = hatNode;
+        #if _OMP_H==1
+            int highestLocked = -1;
+            bool valid = true;
+            for (int i=0; valid && i<insertedHeight; i++) {
+                Node* pred = preds[i];
+                Node* succ = succs[i];
+                highestLocked = i;
+                valid = !pred->is_marked() 
+                        && ((succ 
+                        && !succ->is_marked())
+                        || !succ)
+                        && pred->next[i] == succ
+                        && ((i > 0 && pred == preds[i-1])
+                            || omp_test_lock(&pred->lock));
+            }
+            if (!valid) {
+                for (int i=0; i<highestLocked; i++) {
+                    omp_unset_lock(&preds[i]->lock);
+                }
+            }
+        #endif
 
-        hatNode->right.push_back(onTheRight);
-        if (onTheRight && !addingNewLevel) onTheRight->left[ancestor] = hatNode;
-        ancestor++;
+        Node* newNode = new Node(key, insertedHeight);
 
-    } while ((height > 0 && ancestor < (int)height) // deterministic
-                    || (height == 0 && (float)rand() / RAND_MAX < .5f)); // random
+        for (int i=0; i<insertedHeight; i++) {
+            preds[i]->next[i] = newNode;
+            newNode->next[i] = succs[i];
+        }
+        newNode->set_fully_linked();
 
-    printdebugfmt("Inserted %s with height=%d", item2str(item).c_str(), ancestor);
-    omp_unset_lock(&this->lock);
+        for (int i=0; i<insertedHeight; i++) {
+            omp_unset_lock(&preds[i]->lock);
+        }
 
-}
+        return true;
 
-void SkipList::insert (item_t item) {
+    }
 
-    return insert_with_height(item, 0);
+    // SHOULD NOT REACH HERE!
+    return false;
     
 }
 
 
-void SkipList::remove (item_t item) {
+bool SkipList::remove (key_t key) {
 
-    omp_set_lock(&this->lock);
-    std::stack<Node*> predecessors; // NOTE: first element is the newest element
-    search_prev(item, predecessors);
-    Node* curr = predecessors.top();
-    if (curr && curr->item == item) {
-        std::vector<Node*> onTheLeft = curr->left;
-        std::vector<Node*> onTheRight = curr->right;
-        for (int i=0; i< (int)onTheLeft.size(); i++) { // numLeft == numRight
-            onTheLeft[i]->right[i] = onTheRight[i];
-            if (onTheRight[i]) onTheRight[i]->left[i] = onTheLeft[i];
+    std::vector<Node*> preds(this->MAX_LEVEL); // index 0: lowest 
+    std::vector<Node*> succs(this->MAX_LEVEL); // index 0: lowest 
+    Node* victim;
+    bool marked = false;
+
+    while (true) {
+
+        int found = search_prev(key, preds, succs);
+        if (found >= 0) victim = succs[found];
+        if (marked ||
+            (found >= 0 &&
+            found+1 == victim->height &&
+            victim->is_fully_linked() &&
+            !victim->is_marked())) { // being removed
+
+            int height = victim->height;
+            if (!marked) {
+                if (!omp_test_lock(&victim->lock) || victim->is_marked()) {
+                    omp_unset_lock(&victim->lock);
+                    return false;
+                }
+                marked = true;
+                victim->set_marked();
+            }
+
+            #if _OMP_H==1
+                int highestLocked = -1;
+                bool valid = true;
+                for (int i=0; valid && i<height; i++) {
+                    Node* pred = preds[i];
+                    highestLocked = i;
+                    valid = 
+                        !pred->is_marked() 
+                        && pred->next[i] == victim
+                        && ((i > 0 && pred == preds[i])
+                        || omp_test_lock(&pred->lock));
+                }
+                if (!valid) {
+                    for (int i=0; i<highestLocked; i++) {
+                        omp_unset_lock(&preds[i]->lock);
+                    }
+                }
+            #endif
+
+
+            victim->set_marked(); 
+
+            for (int i=height-1; i>=0; i--) {
+                preds[i]->next[i] = succs[i]->next[i];
+            }
+            omp_unset_lock(&victim->lock);
+            delete victim;
+
+            for (int i=0; i<height; i++) {
+                omp_unset_lock(&preds[i]->lock);
+            }
+
+            return true;
+        } else {
+            return false;
         }
+
     }
-    delete curr;
-    omp_unset_lock(&this->lock);
+
+    // SHOULD NOT REACH HERE!
+    return false;
+
 }
 
 
-void SkipList::printList (){
+void SkipList::printList () const {
 
     // find the offsets for printing based on level 0
     std::vector<std::pair<int, Node*>> offsets;
-    Node* curr = this->head->right[0];
+    Node* curr = this->head->next[0];
     int offset = 0;
     while (curr) {
         offsets.push_back(std::make_pair(offset, curr));
-        std::string itemstr = node2str(curr);
-        offset += (int)(itemstr.length() + 1);
-        curr = curr->right[0];
+        std::string itemstr = curr->toStr();
+        offset += static_cast<int>(itemstr.length() + 1);
+        curr = curr->next[0];
     }
 
-    int numOffsets = (int) offsets.size();
-    int numRight = (int) this->head->right.size();
-\
-    for (int i=numRight-1; i>=0; i--) { // horizontal
-        curr = this->head->right[i];
+    int numOffsets = static_cast<int>(offsets.size());
+    int numRight = static_cast<int>(this->head->next.size());
+    while (!this->head->next[--numRight]) {}
+
+    for (int i=numRight; i>=0; i--) { // horizontal
+        curr = this->head->next[i];
         int p = 0;
         int prevLength = 0;
         for (int j=0; j<numOffsets; j++) { // vertical
@@ -179,17 +237,17 @@ void SkipList::printList (){
                     for (int k=0; k<numDashes; k++) printf(" ");
                 }
                 
-                std::string itemstr = node2str(curr);
+                std::string itemstr = curr->toStr();
                 printf("%s", itemstr.c_str());
-                curr = curr->right[i];
+                curr = curr->next[i];
                 p = j;
-                prevLength = (int)(itemstr.length());
+                prevLength = static_cast<int>(itemstr.length());
             } 
         }
         printNewLine();
     }
 }
 
-bool SkipList::empty () {
-    return (int)this->head->right.size() == 1;
+bool SkipList::empty () const {
+    return this->head->next[0] == nullptr;
 }

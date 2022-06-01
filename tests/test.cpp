@@ -1,5 +1,6 @@
 
 #include "test.h"
+#include "../helpers/debug.h"
 #include "../skiplist.h"
 
 #include <stdio.h>
@@ -12,13 +13,13 @@
 #include "../helpers/debug.h"
 
 
-bool test1(int testID) {
+bool test1() {
 
     printf("Test 1[Simple]: \n");
 
     SkipList* slist = new SkipList();
     printdebug("Insertion")
-    slist->insert_with_height(11, 1); // height == 1
+    slist->insert(11); // height == 1
     printdebug("Printing")
     slist->printList();
     printdebug("Checking")
@@ -27,14 +28,15 @@ bool test1(int testID) {
     return v;
 }
 
-bool test2(int testID) {
+bool test2() {
 
     printf("Test 2[2 insertions at front]: \n");
 
     SkipList* slist = new SkipList();
     printdebug("Insertion")
-    slist->insert_with_height(11, 2);
-    slist->insert_with_height(5, 1);
+    slist->insert(11);
+    if (DEBUG) slist->printList();
+    slist->insert(5);
     printdebug("Printing")
     slist->printList();
     printdebug("Checking")
@@ -43,14 +45,15 @@ bool test2(int testID) {
     return v;
 }
  
-bool test3(int testID) {
+bool test3() {
 
     printf("Test 3[2 insertions at back]: \n");
 
     SkipList* slist = new SkipList();
     printdebug("Insertion")
-    slist->insert_with_height(5, 1);
-    slist->insert_with_height(11, 2);
+    slist->insert(5);
+    if (DEBUG) slist->printList();
+    slist->insert(11);
     printdebug("Printing")
     slist->printList();
     printdebug("Checking")
@@ -59,28 +62,30 @@ bool test3(int testID) {
     return v;
 }
 
-bool test4(int testID) {
+bool test4() {
     printf("Test 4[3 insertions in the middle]: \n");
     SkipList* slist = new SkipList();
-    slist->insert_with_height(2, 1);
-    slist->insert_with_height(11, 1);
-    slist->insert_with_height(5, 2);
+    slist->insert(2);
+    if (DEBUG) slist->printList();
+    slist->insert(11);
+    if (DEBUG) slist->printList();
+    slist->insert(5);
     slist->printList();
     bool v = slist->search(2) && slist->search(5) && slist->search(11);
     delete slist;
     return v;
 }
 
-bool test5(int testID) {
+bool test5() {
 
     printf("Test 5[insertions insertions randomly (small)]: \n");
-    srand(time(NULL));
     SkipList* slist = new SkipList();
     std::vector<key_t> A;
     int size = 25;
     for (int i=0; i<size; i++) {
         A.push_back(rand()%size);
         slist->insert(A[i]);
+        if (DEBUG) slist->printList();
     }
     slist->printList();
     for (auto i : A) {
@@ -93,9 +98,8 @@ bool test5(int testID) {
     return true;
 }
 
-bool test6(int testID) {
+bool test6() {
     printf("Test 6[insertions insertions randomly (big)]: \n");
-    srand(time(NULL));
     SkipList* slist = new SkipList();
     std::vector<key_t> A;
     int size = 10000;
@@ -114,12 +118,12 @@ bool test6(int testID) {
     return true;
 }
 
-bool test7(int testID) {
+bool test7() {
     printf("Test 7[Simple]: \n");
 
     SkipList* slist = new SkipList();
     printdebug("Insertion")
-    slist->insert_with_height(11, 1); // height == 1
+    slist->insert(11); // height == 1
     printdebug("Printing")
     slist->printList();
     printdebug("Removing")
@@ -132,97 +136,94 @@ bool test7(int testID) {
     return v;
 }
 
-bool test8(int testID) {
+bool test8() {
 
     printf("Test 8[remove at front]: \n");
 
     SkipList* slist = new SkipList();
     printdebug("Insertion")
-    slist->insert_with_height(11, 2);
-    slist->insert_with_height(5, 1);
+    slist->insert(11);
+    slist->insert(5);
     printdebug("Printing")
     slist->printList();
     printdebug("removing")
     slist->remove(5);
+    if (DEBUG) slist->printList();
     printdebug("Checking")
     bool v = slist->search(11) && !slist->search(5);
     delete slist;
     return v;
 }
 
-bool test9(int testID) {
+bool test9() {
 
     printf("Test 9[remove at back]: \n");
 
     SkipList* slist = new SkipList();
     printdebug("Insertion")
-    slist->insert_with_height(5, 1);
-    slist->insert_with_height(11, 2);
+    slist->insert(5);
+    slist->insert(11);
     printdebug("Printing")
     slist->printList();
     printdebug("removing");
     slist->remove(11);
+    if (DEBUG) slist->printList();
     printdebug("Checking")
     bool v = !slist->search(11) && slist->search(5);
     delete slist;
     return v;
 }
 
-bool test10(int testID) {
+bool test10() {
     printf("Test 10[1 removal in the middle]: \n");
     SkipList* slist = new SkipList();
-    slist->insert_with_height(2, 1);
-    slist->insert_with_height(11, 1);
-    slist->insert_with_height(5, 2);
+    slist->insert(2);
+    slist->insert(11);
+    slist->insert(5);
+    printdebug("Printing");
     slist->printList();
+    printdebug("removing");
     slist->remove(5);
-    slist->printList();
+    if (DEBUG) slist->printList();
     bool v = slist->search(2) && !slist->search(5) && slist->search(11);
     delete slist;
     return v;
 }
 
-bool test11(int testID) {
+bool test11() {
 
     printf("Test 11[remove half (small)]: \n");
-    srand(time(NULL));
     SkipList* slist = new SkipList();
     std::vector<key_t> A;
     int size = 25;
-    int threshold = 12;
     for (int i=0; i<size; i++) {
         A.push_back(rand()%size);
-        if (i == threshold) printdebug("All inserted above ^");
         slist->insert(A[i]);
     }
     slist->printList();
-    for (int i=0; i<threshold; i++) {
+    for (int i=0; i<size; i++) {
         slist->remove(A[i]);
+        if (DEBUG) slist->printList();
     }
-    slist->printList();
-    for (int i=threshold; i<size; i++) {
-        slist->remove(A[i]);
-    }
+    bool v = slist->empty();
     delete slist;
-    return true;
+    return v;
 }
 
-bool test12(int testID) {
+bool test12() {
 
-    printf("Test 12[remove half (medium)]: \n");
-    srand(time(NULL));
+    printf("Test 12[remove (big)]: \n");
     SkipList* slist = new SkipList();
     std::vector<key_t> A;
     int size = 10000;
-    int threshold = 12;
     for (int i=0; i<size; i++) {
         A.push_back(rand()%size);
-        if (i == threshold) printdebug("All inserted above ^");
         slist->insert(A[i]);
     }
     for (int i=0; i<size; i++) {
         slist->remove(A[i]);
     }
+    bool v = slist->empty();
     delete slist;
-    return true;
+    return v;
 }

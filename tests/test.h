@@ -2,17 +2,17 @@
 #ifndef _TEST_H
 #define _TEST_H
 
-bool test1(int testID);
-bool test2(int testID);
-bool test3(int testID);
-bool test4(int testID);
-bool test5(int testID);
-bool test6(int testID);
-bool test7(int testID);
-bool test8(int testID);
-bool test9(int testID);
-bool test10(int testID);
-bool test11(int testID);
-bool test12(int testID);
+bool test1();
+bool test2();
+bool test3();
+bool test4();
+bool test5();
+bool test6();
+bool test7();
+bool test8();
+bool test9();
+bool test10();
+bool test11();
+bool test12();
 
 #endif

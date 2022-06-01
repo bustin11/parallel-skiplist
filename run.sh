@@ -14,5 +14,4 @@ ${PATH_TO}/tests/test
 make
 echo $'\n===== Benchmarking performance of skiplist... =====\n'
 
-
 ${PATH_TO}/src/main

@@ -45,7 +45,11 @@ int main(int argc, char** argv) {
         }
     }
 
-    prob1(mainArgs.numThreads);
+    srand(11);
+    for (int i=0; i<1000; i++) {
+        prob1(mainArgs.numThreads);
+    }
+    // prob2(mainArgs.numThreads);
 
-    printf("Done.\n");
+    // printf("Done.\n");
 }

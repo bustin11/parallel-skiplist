@@ -1,6 +1,7 @@
 
 #include "test.h"
 #include "../skiplist.h"
+#include "../helpers/debug.h"
 
 #include <stdio.h>
 #include <assert.h>
@@ -24,7 +25,7 @@ void print_usage () {
         );
 }
 
-typedef bool (*fnPtr)(int);
+typedef bool (*fnPtr)();
 
 void initTests(std::vector<fnPtr>& tests) {
     tests.push_back(test1);
@@ -61,9 +62,12 @@ int main(int argc, char** argv) {
     std::vector<fnPtr> tests;
     initTests(tests);
 
+    if (DEBUG) srand(11);
+    else srand(time(NULL));
+
     for (int i=1; i<=(int)tests.size(); i++) {
         if (i == mainArgs.testID || !mainArgs.testID) {
-            assert(tests[i-1](mainArgs.testID));
+            assert(tests[i-1]());
         }
     }
 

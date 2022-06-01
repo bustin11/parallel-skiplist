@@ -3,38 +3,92 @@
 #define _SKIPLIST_H
 
 #include <vector>
-#include <stack>
 #include <stdio.h>
 #include <stdint.h>
+#include <string>
 
 #include "omp.h"
+#if OMP==0
+#define omp_init_lock
+#define omp_set_lock
+#define omp_unset_lock
+#define omp_destroy_lock
+#define omp_test_lock
+#endif
 
-typedef int32_t item_t;
+typedef int32_t key_t;
 
+// std::vector<Node*> left;
 class Node {
+    private:
+    int state; // marked (logically removed) or 
+                // fully linked (all connections established)
+
     public:
-    std::vector<Node*> left;
-    std::vector<Node*> right;
-    item_t item;
+    int height;
+    std::vector<Node*> next;
+    key_t key;
+    omp_lock_t lock;
+
+    ~Node() {
+        omp_destroy_lock(&lock);
+    }
+
+    Node(key_t key, int height) {
+        state = 0;
+        omp_init_lock(&lock);
+        this->key = key;
+        this->height = height;
+        this->next = std::vector<Node*>(height);
+    }
+
+    std::string toStr() {
+        return std::to_string(key).c_str();
+    }
+
+    void set_fully_linked() {
+        state = state | 1;
+    }
+
+    void unset_fully_linked() {
+        state = state & 2;
+    }
+
+    void set_marked() {
+        state = state | 2;
+    }
+
+    void unset_marked() {
+        state = state & 1;
+    }
+
+    bool is_fully_linked() {
+        return state & 1;
+    }
+
+    bool is_marked() {
+        return state & 2;
+    }
 };
 
 class SkipList {
     private:
-    void search_prev(item_t id, std::stack<Node*>& predecessors) const;
+    int search_prev(key_t key, 
+    std::vector<Node*>& preds,
+    std::vector<Node*>& succs) const;
     Node* head; // very left
-    omp_lock_t lock;
+    const int MAX_LEVEL = 50;
 
     public:
     SkipList();
     ~SkipList();
 
-    void insert(item_t item);
-    void insert_with_height(item_t item, size_t height);
-    void remove(item_t item);
-    bool search(item_t item) const;
-    bool empty();
+    bool insert(key_t key);
+    bool remove(key_t key);
+    bool search(key_t key) const;
+    bool empty() const;
     
-    void printList();
+    void printList() const;
 };
 
 #endif
