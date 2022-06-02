@@ -10,13 +10,6 @@
 #include <memory>
 
 #include "omp.h"
-#if OMP==0
-#define omp_init_lock
-#define omp_set_lock
-#define omp_unset_lock
-#define omp_destroy_lock
-#define omp_test_lock
-#endif
 
 typedef int32_t key_t;
 

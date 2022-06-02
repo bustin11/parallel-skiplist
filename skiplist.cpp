@@ -19,23 +19,6 @@ SkipList::SkipList() {
         std::make_shared<Node>(INT32_MIN, this->MAX_LEVEL); // starting dummy node
 }
 
-SkipList::~SkipList() {
-
-    // Node* curr = this->head->next[0];
-    // delete this->head;
-    // while (curr) {
-    //     Node* right = curr->next[0];
-    //     omp_destroy_lock(&curr->lock);
-    //     delete curr;
-    //     curr = right;
-    // }
-
-    // for (auto node : deleteList) {
-    //     delete node;
-    // }
-
-}
-
 int SkipList::search_prev (key_t key, 
                             std::vector<std::shared_ptr<Node>>& preds,
                             std::vector<std::shared_ptr<Node>>& succs) const {
@@ -68,7 +51,6 @@ int SkipList::search_prev (key_t key,
     return keyFound;
 }
 
-// TODO: make this thread safe
 bool SkipList::search (key_t key) const {
 
     std::vector<std::shared_ptr<Node>> A(this->MAX_LEVEL); // not use :(
@@ -79,6 +61,7 @@ bool SkipList::search (key_t key) const {
         && (!B[0]->is_marked());
 
 }
+
 
 bool SkipList::insert (key_t key) {
 
@@ -98,28 +81,23 @@ bool SkipList::insert (key_t key) {
         }
 
         bool abort = false;
-        bool v;
-        bool a;
-        bool b;
-        bool c;
         std::vector<std::shared_ptr<Node>> locksAquired;
         for (int i=0; i<insertedHeight; i++) {
+
             std::shared_ptr<Node> pred = preds[i];
-            // if (i == 0 || pred != preds[i-1]) {
-            v = pred->is_marked();
-            a = !omp_test_lock(&pred->lock);
-            if (!a) {
-                locksAquired.push_back(pred);
-            }
-            b = (i == 0 || pred != preds[i-1]);
-            c = succs[i] != pred->next[i];
-            // if (pred->is_marked() 
-            // || !omp_test_lock(&pred->lock)) {
-            if ((a && b) || v || c) {
+
+            bool predMarked = pred->is_marked();
+            bool alreadyLocked = !omp_test_lock(&pred->lock);
+            if (!alreadyLocked) locksAquired.push_back(pred);
+            bool notSeenPred = (i == 0 || pred != preds[i-1]);
+            bool stillLinked = succs[i] == pred->next[i];
+
+            if ((alreadyLocked && notSeenPred) 
+                || predMarked
+                || !stillLinked) {
                 abort = true;
                 break;
             }
-            // }
         }
         if (abort) {
             for (auto& pred : locksAquired) {
@@ -138,9 +116,8 @@ bool SkipList::insert (key_t key) {
 
         newNode->set_fully_linked();
 
-        for (int i=0; i<insertedHeight; i++) {
-            if (i == 0 || preds[i] != preds[i-1])
-                omp_unset_lock(&preds[i]->lock);
+        for (auto& pred : locksAquired) {
+            omp_unset_lock(&pred->lock);
         }
 
         return true;
@@ -151,7 +128,6 @@ bool SkipList::insert (key_t key) {
     return false;
     
 }
-
 
 bool SkipList::remove (key_t key) {
 
@@ -184,41 +160,39 @@ bool SkipList::remove (key_t key) {
             }
             int height = victim->height;
 
-            #if _OMP_H==1
-                int highestLocked = -1;
-                bool abort = false;
-                for (int i=0; i<height; i++) {
-                    std::shared_ptr<Node> pred = preds[i];
-                    highestLocked = i;
-                    bool v = !omp_test_lock(&pred->lock);
-                    // if (( v
-                    // && (i == 0 || pred != preds[i-1]))
-                    // || pred->is_marked() 
-                    // || pred->next[i] != victim) {
-                    bool a (i == 0 || pred != preds[i-1]);
-                    bool b = pred->is_marked();
-                    bool c = pred->next[i] != victim;
-                    if ((v && a) || b || c) {
-                        abort = true;
-                        break;
-                    }
+            bool abort = false;
+            std::vector<std::shared_ptr<Node>> locksAquired;
+            for (int i=0; i<height; i++) {
+
+                std::shared_ptr<Node> pred = preds[i];
+
+                bool predMarked = pred->is_marked();
+                bool alreadyLocked = !omp_test_lock(&pred->lock);
+                if (!alreadyLocked) locksAquired.push_back(pred);
+                bool notSeenPred = (i == 0 || pred != preds[i-1]);
+                bool stillLinked = succs[i] == pred->next[i];
+
+                if ((alreadyLocked && notSeenPred) 
+                    || predMarked 
+                    || !stillLinked) {
+                    abort = true;
+                    break;
                 }
-                if (abort) {
-                    for (int i=0; i<highestLocked; i++){
-                        if (i == 0 || preds[i] != preds[i-1])
-                            omp_unset_lock(&preds[i]->lock);
-                    }
-                    continue;
+            }
+            if (abort) {
+                for (auto& pred : locksAquired) {
+                    omp_unset_lock(&pred->lock);
                 }
-            #endif
+                continue;
+            }
 
             for (int i=0; i<height; i++){
                 preds[i]->next[i] = victim->next[i];
             }
 
-            for (int i=0; i<height; i++){
-                if (i == 0 || preds[i] != preds[i-1])
-                    omp_unset_lock(&preds[i]->lock);
+
+            for (auto& pred : locksAquired) {
+                omp_unset_lock(&pred->lock);
             }
 
             return true;

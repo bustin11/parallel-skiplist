@@ -21,7 +21,7 @@ TEST=test
 default: $(MAIN)
 
 # ================= test ======================
-$(TEST): ADD_ARGS=-g -D"OMP=0"
+$(TEST): ADD_ARGS=-g -fopenmp
 
 $(TEST): $(TEST_OBJS) $(TESTDIR)/skiplist.o
 	$(CXX) $(CXXFLAGS) -o $(TESTDIR)/$@ $(TEST_OBJS) $(ADD_ARGS) $(TESTDIR)/skiplist.o
@@ -33,7 +33,7 @@ $(TESTDIR)/skiplist.o: skiplist.cpp skiplist.h $(helpers/*.h)
 	$(CXX) $< $(CXXFLAGS) $(ADD_ARGS) -c -o $@
 
 # ================= main ======================
-$(MAIN): ADD_ARGS=-fopenmp -D"OMP=1" -g
+$(MAIN): ADD_ARGS=-fopenmp
 
 $(MAIN): $(MAIN_OBJS) $(MAINDIR)/skiplist.o
 	$(CXX) $(CXXFLAGS) -o $(MAINDIR)/$@ $(MAIN_OBJS) $(ADD_ARGS) $(MAINDIR)/skiplist.o

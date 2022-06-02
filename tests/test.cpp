@@ -7,10 +7,8 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <time.h>
-#include <memory>
 
-
-#include "../helpers/debug.h"
+#include "omp.h"
 
 
 bool test1() {
@@ -23,14 +21,13 @@ bool test1() {
     printdebug("Printing")
     slist->printList();
     printdebug("Checking")
-    bool v = slist->search(11);
-    delete slist;
-    return v;
+    bool valid = slist->search(11);
+    return valid;
 }
 
 bool test2() {
 
-    printf("Test 2[2 insertions at front]: \n");
+    printf("Test 2[1 insertions at front]: \n");
 
     SkipList* slist = new SkipList();
     printdebug("Insertion")
@@ -40,14 +37,13 @@ bool test2() {
     printdebug("Printing")
     slist->printList();
     printdebug("Checking")
-    bool v = slist->search(11) && slist->search(5);
-    delete slist;
-    return v;
+    bool valid = slist->search(11) && slist->search(5);
+    return valid;
 }
  
 bool test3() {
 
-    printf("Test 3[2 insertions at back]: \n");
+    printf("Test 3[1 insertions at back]: \n");
 
     SkipList* slist = new SkipList();
     printdebug("Insertion")
@@ -57,13 +53,12 @@ bool test3() {
     printdebug("Printing")
     slist->printList();
     printdebug("Checking")
-    bool v = slist->search(11) && slist->search(5);
-    delete slist;
-    return v;
+    bool valid = slist->search(11) && slist->search(5);
+    return valid;
 }
 
 bool test4() {
-    printf("Test 4[3 insertions in the middle]: \n");
+    printf("Test 4[1 insertions in the middle]: \n");
     SkipList* slist = new SkipList();
     slist->insert(2);
     if (DEBUG) slist->printList();
@@ -71,51 +66,68 @@ bool test4() {
     if (DEBUG) slist->printList();
     slist->insert(5);
     slist->printList();
-    bool v = slist->search(2) && slist->search(5) && slist->search(11);
-    delete slist;
-    return v;
+    bool valid = slist->search(2) && slist->search(5) && slist->search(11);
+    return valid;
 }
 
-bool test5() {
+bool test5(int numThreads, int seed) {
 
-    printf("Test 5[insertions insertions randomly (small)]: \n");
-    SkipList* slist = new SkipList();
-    std::vector<key_t> A;
     int size = 25;
+    printf("Test 5[%d insertions insertions]: \n", size);
+
+    (seed < 0) ? srand(time(NULL)) : srand(seed);
+    omp_set_num_threads(numThreads);
+
+    std::vector<key_t> A;
     for (int i=0; i<size; i++) {
         A.push_back(rand()%size);
+    }
+
+    SkipList* slist = new SkipList();
+    #pragma omp parallel for schedule(dynamic) shared(slist)
+    for (int i=0; i<size; i++) {
         slist->insert(A[i]);
         if (DEBUG) slist->printList();
     }
     slist->printList();
+
+    bool invalid = false;
+    #pragma omp parallel for schedule(dynamic) shared(slist)
     for (auto i : A) {
         if (!slist->search(A[i])) {
-            delete slist;
-            return false;
+            invalid = true;
         }
     }
-    delete slist;
-    return true;
+    return !invalid;
 }
 
-bool test6() {
-    printf("Test 6[insertions insertions randomly (big)]: \n");
-    SkipList* slist = new SkipList();
-    std::vector<key_t> A;
+bool test6(int numThreads, int seed) {
+
     int size = 10000;
+    printf("Test 6[%d insertions insertions randomly]: \n", size);
+
+    (seed < 0) ? srand(time(NULL)) : srand(seed);
+    omp_set_num_threads(numThreads);
+    std::vector<key_t> A;
     for (int i=0; i<size; i++) {
         A.push_back(rand()%size);
+    }
+
+    SkipList* slist = new SkipList();
+    #pragma omp parallel for schedule(dynamic) shared(slist)
+    for (int i=0; i<size; i++) {
         slist->insert(A[i]);
     }
     // slist->printList();
+
+    bool invalid = false;
+    #pragma omp parallel for schedule(dynamic) shared(slist)
     for (auto i : A) {
         if (!slist->search(A[i])) {
-            delete slist;
-            return false;
+            invalid = true;
         }
     }
-    delete slist;
-    return true;
+    return !invalid;
 }
 
 bool test7() {
@@ -131,14 +143,13 @@ bool test7() {
     printdebug("Printing")
     slist->printList();
     printdebug("Checking")
-    bool v = slist->empty();
-    delete slist;
-    return v;
+    bool valid = slist->empty();
+    return valid;
 }
 
 bool test8() {
 
-    printf("Test 8[remove at front]: \n");
+    printf("Test 8[1 deletion at front]: \n");
 
     SkipList* slist = new SkipList();
     printdebug("Insertion")
@@ -150,14 +161,13 @@ bool test8() {
     slist->remove(5);
     if (DEBUG) slist->printList();
     printdebug("Checking")
-    bool v = slist->search(11) && !slist->search(5);
-    delete slist;
-    return v;
+    bool valid = slist->search(11) && !slist->search(5);
+    return valid;
 }
 
 bool test9() {
 
-    printf("Test 9[remove at back]: \n");
+    printf("Test 9[1 deletion at back]: \n");
 
     SkipList* slist = new SkipList();
     printdebug("Insertion")
@@ -169,13 +179,13 @@ bool test9() {
     slist->remove(11);
     if (DEBUG) slist->printList();
     printdebug("Checking")
-    bool v = !slist->search(11) && slist->search(5);
-    delete slist;
-    return v;
+    bool valid = !slist->search(11) && slist->search(5);
+    return valid;
 }
 
 bool test10() {
-    printf("Test 10[1 removal in the middle]: \n");
+
+    printf("Test 10[1 deletion in the middle]: \n");
     SkipList* slist = new SkipList();
     slist->insert(2);
     slist->insert(11);
@@ -185,45 +195,60 @@ bool test10() {
     printdebug("removing");
     slist->remove(5);
     if (DEBUG) slist->printList();
-    bool v = slist->search(2) && !slist->search(5) && slist->search(11);
-    delete slist;
-    return v;
+    bool valid = slist->search(2) && !slist->search(5) && slist->search(11);
+    return valid;
 }
 
-bool test11() {
+bool test11(int numThreads, int seed) {
 
-    printf("Test 11[remove half (small)]: \n");
-    SkipList* slist = new SkipList();
-    std::vector<key_t> A;
     int size = 25;
+    printf("Test 11[%d deletions]: \n", size);
+
+    (seed < 0) ? srand(time(NULL)) : srand(seed);
+    omp_set_num_threads(numThreads);
+
+    std::vector<key_t> A;
     for (int i=0; i<size; i++) {
         A.push_back(rand()%size);
+    }
+
+    SkipList* slist = new SkipList();
+    #pragma omp parallel for schedule(dynamic) shared(slist)
+    for (int i=0; i<size; i++) {
         slist->insert(A[i]);
     }
     slist->printList();
+    #pragma omp parallel for schedule(dynamic) shared(slist)
     for (int i=0; i<size; i++) {
         slist->remove(A[i]);
         if (DEBUG) slist->printList();
     }
-    bool v = slist->empty();
-    delete slist;
-    return v;
+    bool valid = slist->empty();
+    return valid;
 }
 
-bool test12() {
+bool test12(int numThreads, int seed) {
 
-    printf("Test 12[remove (big)]: \n");
-    SkipList* slist = new SkipList();
-    std::vector<key_t> A;
     int size = 10000;
+    printf("Test 12[%d random deletions]: \n", size);
+
+    (seed < 0) ? srand(time(NULL)) : srand(seed);
+    omp_set_num_threads(numThreads);
+
+    std::vector<key_t> A;
     for (int i=0; i<size; i++) {
         A.push_back(rand()%size);
+    }
+
+    SkipList* slist = new SkipList();
+    #pragma omp parallel for schedule(dynamic) shared(slist)
+    for (int i=0; i<size; i++) {
         slist->insert(A[i]);
     }
+    #pragma omp parallel for schedule(dynamic) shared(slist)
     for (int i=0; i<size; i++) {
         slist->remove(A[i]);
     }
-    bool v = slist->empty();
-    delete slist;
-    return v;
+    bool valid = slist->empty();
+    return valid;
 }
