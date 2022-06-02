@@ -43,7 +43,7 @@ void prob_size(int numThreads, int size) {
         }
         second = omp_get_wtime();
         delete_avgTime += second - first;
-        assert(slist->empty());
+        // assert(slist->empty());
     }
     printf("\n[%d insertions (3x avg)]: %f\n", size, (insert_avgTime) / 3);
     printf("[%d deletions] (3x avg): %f\n", size, (delete_avgTime) / 3);

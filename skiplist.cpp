@@ -23,22 +23,21 @@ int SkipList::search_prev (key_t key,
                             std::vector<std::shared_ptr<Node>>& preds,
                             std::vector<std::shared_ptr<Node>>& succs) const {
 
-    // int threadID = omp_get_thread_num();
     std::shared_ptr<Node> prev = this->head;
-    // int numOfLevels = static_cast<int>(this->head->next.size());
     int heightOfInsertion = static_cast<int>(preds.size());
     int keyFound = -1;
 
     for (int i=heightOfInsertion-1; i>=0; i--) {
 
+        // curr is either the node with the key value, or is guarenteed to be
+        // less than the key value
         std::shared_ptr<Node> curr = prev->next[i];
 
         while (curr && key > curr->key) {
-                
             prev = curr;
             curr = prev->next[i];
-
         }
+        // finds the top most insertion point
         if (keyFound < 0 && curr && key == curr->key) {
             keyFound = i;
         }
@@ -80,6 +79,7 @@ bool SkipList::insert (key_t key) {
             continue;
         }
 
+        // aquire predecessor locks
         bool abort = false;
         std::vector<std::shared_ptr<Node>> locksAquired;
         for (int i=0; i<insertedHeight; i++) {
@@ -109,6 +109,7 @@ bool SkipList::insert (key_t key) {
         std::shared_ptr<Node> newNode = 
             std::make_shared<Node>(key, insertedHeight);
 
+        // connect
         for (int i=0; i<insertedHeight; i++) {
             newNode->next[i] = preds[i]->next[i];
             preds[i]->next[i] = newNode;
@@ -134,20 +135,22 @@ bool SkipList::remove (key_t key) {
     // int threadID = omp_get_thread_num();
     std::vector<std::shared_ptr<Node>> preds(this->MAX_LEVEL); // index 0: lowest 
     std::vector<std::shared_ptr<Node>> succs(this->MAX_LEVEL); // index 0: lowest 
-    bool marked = false;
+    bool marked = false; // if victim marked, don't need to check preconditions
+                         // all the time in a while true loop
 
     while (true) {
 
         std::shared_ptr<Node> victim;
         int found = search_prev(key, preds, succs);
-        if (found >= 0) 
-            victim = succs[found];
+        if (found >= 0) victim = succs[found];
         if (marked ||
+            // preconditions
             (found >= 0 &&
             found+1 == victim->height &&
             victim->is_fully_linked() &&
             !victim->is_marked())) { // being removed
 
+            // aquire victim lock
             if (!marked) {
                 if (victim->is_marked()) {
                     return false;
@@ -160,6 +163,7 @@ bool SkipList::remove (key_t key) {
             }
             int height = victim->height;
 
+            // aquire predecessor locks
             bool abort = false;
             std::vector<std::shared_ptr<Node>> locksAquired;
             for (int i=0; i<height; i++) {
@@ -186,6 +190,7 @@ bool SkipList::remove (key_t key) {
                 continue;
             }
 
+            // detach
             for (int i=0; i<height; i++){
                 preds[i]->next[i] = victim->next[i];
             }

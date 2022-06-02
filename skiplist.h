@@ -13,7 +13,6 @@
 
 typedef int32_t key_t;
 
-// std::vector<Node*> left;
 class Node {
     private:
     int state; // marked (logically removed) or 
@@ -66,23 +65,59 @@ class Node {
     }
 };
 
+// only support key insertions/removal operations
 class SkipList {
     private:
+    /*
+    @param key: key (of an item) to lookup
+    @param preds: stores the predecessors in the path to find the node 
+    @param succs: stores the successors in the path to find the node (can
+    contain the node of the key you are looking for.)
+
+    @returns The first index found of the item. Since a skiplist is composed
+    of 'sublists', every node has a varying height. The first index found is
+    also its height - 1 (0 indexing). Returns -1 if not found
+    */
     int search_prev(key_t key, 
     std::vector<std::shared_ptr<Node>>& preds,
     std::vector<std::shared_ptr<Node>>& succs) const;
     std::shared_ptr<Node> head; // very left
+
     const int MAX_LEVEL = 50;
 
     public:
     SkipList();
-    ~SkipList();
 
+    /*
+    @param key: key (of an item) to be inserted
+
+    @returns true if inserted, otherwise false
+    */
     bool insert(key_t key);
+
+    /*
+    @param key: key (of an item) to be deleted
+
+    @returns true if removed, otherwise false
+    */
     bool remove(key_t key);
+
+    /*
+    @param key (of an item) to lookup
+
+    @returns true if found, otherwise false
+    */
     bool search(key_t key) const;
+
+    /*
+    @returns true if skiplist is empty, otherwise false
+    */
     bool empty() const;
     
+    /*
+    Pretty prints the skiplist. Reasonable ranges are from
+    0-30. 
+    */
     void printList() const;
 };
 
