@@ -14,5 +14,7 @@ bool test9();
 bool test10();
 bool test11(int numThreads, int seed);
 bool test12(int numThreads, int seed);
+bool test13(int numThreads, int seed);
+bool test14(int numThreads, int seed);
 
 #endif

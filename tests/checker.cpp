@@ -26,6 +26,8 @@ void print_usage () {
         "  -T <num>   Test Number (1-12)\n"
         "    - 1-6 test insertions, with increasing difficulty to pass\n"
         "    - 7-12 test deletions, with increasing difficulty to pass\n"
+        "    - 13 test 100 ins/del mixed (don't try unless 1-12 passed)\n"
+        "    - 14 test 10000 ins/del mixed (don't try unless 13 passed)\n"
         );
 }
 
@@ -62,6 +64,11 @@ void initTests(std::vector<easyTestPtr>& easyTests,
     hardTests.push_back(test12);
     index2Test[11] = 2;
     index2Test[12] = 3;
+
+    hardTests.push_back(test13);
+    hardTests.push_back(test14);
+    index2Test[13] = 4;
+    index2Test[14] = 5;
 }
 
 
@@ -98,7 +105,7 @@ int main(int argc, char** argv) {
     printf("Number of threads:%d\n", mainArgs.numThreads);
     for (int i=1; i<=static_cast<int>(numTests); i++) {
         if (i == mainArgs.testID || !mainArgs.testID) {
-            if (i == 5 || i == 6 || i == 11 || i == 12) { // 5, 6, 11, 12
+            if (i == 5 || i == 6 || i >= 11) { 
                 assert(hardTests[index2test[i]](mainArgs.numThreads, 
                                         mainArgs.seed));
             } else {

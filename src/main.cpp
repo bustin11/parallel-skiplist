@@ -59,16 +59,20 @@ int main(int argc, char** argv) {
     std::vector<int> sizes{10000, 20000, 30000};
     printf("Number of threads:%d\n", mainArgs.numThreads);
 
-    printf("Problem size: \n");
+    printf("===================== ------------- =====================\n");
+    printf("===================== Problem size: =====================\n");
+    printf("===================== ------------- =====================\n");
     for (int size : sizes) {
         prob_size(mainArgs.numThreads, size);
     }
-    printf("Done.\n");
+    printf("========================> Done.\n\n");
 
-    printf("Problem size (mixed): \n");
+    printf("=================---------------------- =================\n");
+    printf("================= Problem size (mixed): =================\n");
+    printf("=================---------------------- =================\n");
     for (int size : sizes) {
         prob_size_mixed(mainArgs.numThreads, size, mainArgs.p);
     }
 
-    printf("Done.\n");
+    printf("========================> Done.\n\n");
 }

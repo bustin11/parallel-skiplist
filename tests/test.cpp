@@ -252,3 +252,76 @@ bool test12(int numThreads, int seed) {
     bool valid = slist->empty();
     return valid;
 }
+
+bool test13(int numThreads, int seed) {
+
+    float p = .75;
+    int size = 100;
+    printf("Test 13[%d random ins/del]: \n", size);
+
+    (seed < 0) ? srand(time(NULL)) : srand(seed);
+    omp_set_num_threads(numThreads);
+
+    auto biased_coin_flip = [](float p){
+        return rand()/RAND_MAX < p;
+    };
+
+    std::vector<key_t> A;
+    for (int i=0; i<size; i++) {
+        A.push_back(rand()%(size/10));
+    }
+
+    // insertions
+    SkipList* slist = new SkipList();
+    #pragma omp parallel for schedule(dynamic) shared(slist)
+    for (int i=0; i<size; i++) {
+        slist->insert(A[i]);
+    }
+
+    // deletions
+    #pragma omp parallel for schedule(dynamic) shared(slist)
+    for (int i=0; i<size; i++) {
+        if (biased_coin_flip(p)) slist->insert(A[i]);
+        else slist->remove(A[i]);
+    }
+
+
+    // no segfault :)
+    return true;
+}
+
+bool test14(int numThreads, int seed) {
+
+    float p = .75;
+    int size = 10000;
+    printf("Test 14[%d random ins/del]: \n", size);
+
+    (seed < 0) ? srand(time(NULL)) : srand(seed);
+    omp_set_num_threads(numThreads);
+
+    auto biased_coin_flip = [](float p){
+        return rand()/RAND_MAX < p;
+    };
+
+    std::vector<key_t> A;
+    for (int i=0; i<size; i++) {
+        A.push_back(rand()%(size/10));
+    }
+
+    // insertions
+    SkipList* slist = new SkipList();
+    #pragma omp parallel for schedule(dynamic) shared(slist)
+    for (int i=0; i<size; i++) {
+        slist->insert(A[i]);
+    }
+
+    // deletions
+    #pragma omp parallel for schedule(dynamic) shared(slist)
+    for (int i=0; i<size; i++) {
+        if (biased_coin_flip(p)) slist->insert(A[i]);
+        else slist->remove(A[i]);
+    }
+
+    // no segfault :)
+    return true;
+}
