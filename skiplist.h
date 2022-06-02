@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string>
+#include <atomic>
+#include <memory>
 
 #include "omp.h"
 #if OMP==0
@@ -26,7 +28,7 @@ class Node {
 
     public:
     int height;
-    std::vector<Node*> next;
+    std::vector<std::shared_ptr<Node>> next;
     key_t key;
     omp_lock_t lock;
 
@@ -39,7 +41,7 @@ class Node {
         omp_init_lock(&lock);
         this->key = key;
         this->height = height;
-        this->next = std::vector<Node*>(height);
+        this->next = std::vector<std::shared_ptr<Node>>(height, nullptr);
     }
 
     std::string toStr() {
@@ -74,9 +76,9 @@ class Node {
 class SkipList {
     private:
     int search_prev(key_t key, 
-    std::vector<Node*>& preds,
-    std::vector<Node*>& succs) const;
-    Node* head; // very left
+    std::vector<std::shared_ptr<Node>>& preds,
+    std::vector<std::shared_ptr<Node>>& succs) const;
+    std::shared_ptr<Node> head; // very left
     const int MAX_LEVEL = 50;
 
     public:

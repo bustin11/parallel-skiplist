@@ -6,6 +6,8 @@
 #include <assert.h>
 #include <algorithm>
 #include <functional>
+#include <atomic>
+#include <memory>
 
 #include "skiplist.h"
 #include "helpers/debug.h"
@@ -13,36 +15,46 @@
 
 
 SkipList::SkipList() {
-    this->head = new Node(INT32_MIN, this->MAX_LEVEL); // starting dummy node
-    this->head->next[0] = nullptr;
+    this->head = 
+        std::make_shared<Node>(INT32_MIN, this->MAX_LEVEL); // starting dummy node
 }
 
 SkipList::~SkipList() {
 
-    Node* curr = this->head->next[0];
-    delete this->head;
-    while (curr) {
-        Node* right = curr->next[0];
-        omp_destroy_lock(&curr->lock);
-        delete curr;
-        curr = right;
-    }
+    // Node* curr = this->head->next[0];
+    // delete this->head;
+    // while (curr) {
+    //     Node* right = curr->next[0];
+    //     omp_destroy_lock(&curr->lock);
+    //     delete curr;
+    //     curr = right;
+    // }
+
+    // for (auto node : deleteList) {
+    //     delete node;
+    // }
+
 }
 
 int SkipList::search_prev (key_t key, 
-                            std::vector<Node*>& preds,
-                            std::vector<Node*>& succs) const {
+                            std::vector<std::shared_ptr<Node>>& preds,
+                            std::vector<std::shared_ptr<Node>>& succs) const {
 
-    Node* prev = this->head;
-    int numOfLevels = static_cast<int>(this->head->next.size());
+    // int threadID = omp_get_thread_num();
+    std::shared_ptr<Node> prev = this->head;
+    // int numOfLevels = static_cast<int>(this->head->next.size());
     int heightOfInsertion = static_cast<int>(preds.size());
     int keyFound = -1;
 
-    for (int i=numOfLevels-1; i>=0; i--) {
-        Node* curr = prev->next[i];
+    for (int i=heightOfInsertion-1; i>=0; i--) {
+
+        std::shared_ptr<Node> curr = prev->next[i];
+
         while (curr && key > curr->key) {
+                
             prev = curr;
             curr = prev->next[i];
+
         }
         if (keyFound < 0 && curr && key == curr->key) {
             keyFound = i;
@@ -59,66 +71,76 @@ int SkipList::search_prev (key_t key,
 // TODO: make this thread safe
 bool SkipList::search (key_t key) const {
 
-    std::vector<Node*> A(this->MAX_LEVEL); // not use :(
-    std::vector<Node*> B(this->MAX_LEVEL);
+    std::vector<std::shared_ptr<Node>> A(this->MAX_LEVEL); // not use :(
+    std::vector<std::shared_ptr<Node>> B(this->MAX_LEVEL);
     int found = this->search_prev(key, A, B);
     return found >= 0 && B[0] 
         && B[0]->key == key && B[0]->is_fully_linked()
-        && !B[0]->is_marked();
+        && (!B[0]->is_marked());
 
 }
 
 bool SkipList::insert (key_t key) {
 
     int insertedHeight = randomHeight(this->MAX_LEVEL);
-    std::vector<Node*> preds(insertedHeight); // index 0: lowest 
-    std::vector<Node*> succs(insertedHeight); // index 0: lowest 
+    std::vector<std::shared_ptr<Node>> preds(insertedHeight); // index 0: lowest 
+    std::vector<std::shared_ptr<Node>> succs(insertedHeight); // index 0: lowest 
 
     while (true) {
 
         int found = search_prev(key, preds, succs);
         if (found >= 0) {
-            Node* nodeFound = succs[found];
-            if (nodeFound && !nodeFound->is_marked()) {
-                while (!nodeFound->is_fully_linked()) {}
+            if (succs[found] && !succs[found]->is_marked()) {
+                while (!succs[found]->is_fully_linked()) {}
                 return false;
-            } else {
-                continue;
             }
+            continue;
         }
 
-        #if _OMP_H==1
-            int highestLocked = -1;
-            bool valid = true;
-            for (int i=0; valid && i<insertedHeight; i++) {
-                Node* pred = preds[i];
-                Node* succ = succs[i];
-                highestLocked = i;
-                valid = !pred->is_marked() 
-                        && ((succ 
-                        && !succ->is_marked())
-                        || !succ)
-                        && pred->next[i] == succ
-                        && ((i > 0 && pred == preds[i-1])
-                            || omp_test_lock(&pred->lock));
+        bool abort = false;
+        bool v;
+        bool a;
+        bool b;
+        bool c;
+        std::vector<std::shared_ptr<Node>> locksAquired;
+        for (int i=0; i<insertedHeight; i++) {
+            std::shared_ptr<Node> pred = preds[i];
+            // if (i == 0 || pred != preds[i-1]) {
+            v = pred->is_marked();
+            a = !omp_test_lock(&pred->lock);
+            if (!a) {
+                locksAquired.push_back(pred);
             }
-            if (!valid) {
-                for (int i=0; i<highestLocked; i++) {
-                    omp_unset_lock(&preds[i]->lock);
-                }
+            b = (i == 0 || pred != preds[i-1]);
+            c = succs[i] != pred->next[i];
+            // if (pred->is_marked() 
+            // || !omp_test_lock(&pred->lock)) {
+            if ((a && b) || v || c) {
+                abort = true;
+                break;
             }
-        #endif
+            // }
+        }
+        if (abort) {
+            for (auto& pred : locksAquired) {
+                omp_unset_lock(&pred->lock);
+            }
+            continue;
+        }
 
-        Node* newNode = new Node(key, insertedHeight);
+        std::shared_ptr<Node> newNode = 
+            std::make_shared<Node>(key, insertedHeight);
 
         for (int i=0; i<insertedHeight; i++) {
+            newNode->next[i] = preds[i]->next[i];
             preds[i]->next[i] = newNode;
-            newNode->next[i] = succs[i];
         }
+
         newNode->set_fully_linked();
 
         for (int i=0; i<insertedHeight; i++) {
-            omp_unset_lock(&preds[i]->lock);
+            if (i == 0 || preds[i] != preds[i-1])
+                omp_unset_lock(&preds[i]->lock);
         }
 
         return true;
@@ -133,61 +155,70 @@ bool SkipList::insert (key_t key) {
 
 bool SkipList::remove (key_t key) {
 
-    std::vector<Node*> preds(this->MAX_LEVEL); // index 0: lowest 
-    std::vector<Node*> succs(this->MAX_LEVEL); // index 0: lowest 
-    Node* victim;
+    // int threadID = omp_get_thread_num();
+    std::vector<std::shared_ptr<Node>> preds(this->MAX_LEVEL); // index 0: lowest 
+    std::vector<std::shared_ptr<Node>> succs(this->MAX_LEVEL); // index 0: lowest 
     bool marked = false;
 
     while (true) {
 
+        std::shared_ptr<Node> victim;
         int found = search_prev(key, preds, succs);
-        if (found >= 0) victim = succs[found];
+        if (found >= 0) 
+            victim = succs[found];
         if (marked ||
             (found >= 0 &&
             found+1 == victim->height &&
             victim->is_fully_linked() &&
             !victim->is_marked())) { // being removed
 
-            int height = victim->height;
             if (!marked) {
-                if (!omp_test_lock(&victim->lock) || victim->is_marked()) {
-                    omp_unset_lock(&victim->lock);
+                if (victim->is_marked()) {
                     return false;
+                }
+                if (!omp_test_lock(&victim->lock)) {
+                    continue;
                 }
                 marked = true;
                 victim->set_marked();
             }
+            int height = victim->height;
 
             #if _OMP_H==1
                 int highestLocked = -1;
-                bool valid = true;
-                for (int i=0; valid && i<height; i++) {
-                    Node* pred = preds[i];
+                bool abort = false;
+                for (int i=0; i<height; i++) {
+                    std::shared_ptr<Node> pred = preds[i];
                     highestLocked = i;
-                    valid = 
-                        !pred->is_marked() 
-                        && pred->next[i] == victim
-                        && ((i > 0 && pred == preds[i])
-                        || omp_test_lock(&pred->lock));
-                }
-                if (!valid) {
-                    for (int i=0; i<highestLocked; i++) {
-                        omp_unset_lock(&preds[i]->lock);
+                    bool v = !omp_test_lock(&pred->lock);
+                    // if (( v
+                    // && (i == 0 || pred != preds[i-1]))
+                    // || pred->is_marked() 
+                    // || pred->next[i] != victim) {
+                    bool a (i == 0 || pred != preds[i-1]);
+                    bool b = pred->is_marked();
+                    bool c = pred->next[i] != victim;
+                    if ((v && a) || b || c) {
+                        abort = true;
+                        break;
                     }
+                }
+                if (abort) {
+                    for (int i=0; i<highestLocked; i++){
+                        if (i == 0 || preds[i] != preds[i-1])
+                            omp_unset_lock(&preds[i]->lock);
+                    }
+                    continue;
                 }
             #endif
 
-
-            victim->set_marked(); 
-
-            for (int i=height-1; i>=0; i--) {
-                preds[i]->next[i] = succs[i]->next[i];
+            for (int i=0; i<height; i++){
+                preds[i]->next[i] = victim->next[i];
             }
-            omp_unset_lock(&victim->lock);
-            delete victim;
 
-            for (int i=0; i<height; i++) {
-                omp_unset_lock(&preds[i]->lock);
+            for (int i=0; i<height; i++){
+                if (i == 0 || preds[i] != preds[i-1])
+                    omp_unset_lock(&preds[i]->lock);
             }
 
             return true;
@@ -205,9 +236,10 @@ bool SkipList::remove (key_t key) {
 
 void SkipList::printList () const {
 
+
     // find the offsets for printing based on level 0
-    std::vector<std::pair<int, Node*>> offsets;
-    Node* curr = this->head->next[0];
+    std::vector<std::pair<int, std::shared_ptr<Node>>> offsets;
+    std::shared_ptr<Node> curr = this->head->next[0];
     int offset = 0;
     while (curr) {
         offsets.push_back(std::make_pair(offset, curr));
@@ -246,6 +278,7 @@ void SkipList::printList () const {
         }
         printNewLine();
     }
+    
 }
 
 bool SkipList::empty () const {

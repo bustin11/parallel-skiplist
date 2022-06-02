@@ -5,11 +5,11 @@
 #include <stdlib.h>
 
 int randomHeight (int maxHeight) {
-    int height = 1;
+    size_t height = 1;
     while ((float)rand() / RAND_MAX < .5f) {
         height++;
     }
-    return std::min(height, maxHeight);
+    return std::min(static_cast<int>(height), maxHeight);
 }
 
 #endif
