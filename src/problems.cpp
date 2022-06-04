@@ -62,7 +62,7 @@ void prob_size_mixed(int numThreads, int size, float p) {
     };
 
     printf("size=%d, ", size);
-    printf("p=%.2f, ", p);
+    printf("p=%.2f", p);
     fflush(stdout);
     for (int j=0; j<3; j++) {
         printf(", %d", j+1);
