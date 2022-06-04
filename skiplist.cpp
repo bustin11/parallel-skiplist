@@ -73,6 +73,7 @@ bool SkipList::insert (key_t key) {
         int found = search_prev(key, preds, succs);
         if (found >= 0) {
             if (succs[found] && !succs[found]->is_marked()) {
+                // spin to avoid calling search_prev again
                 while (!succs[found]->is_fully_linked()) {}
                 return false;
             }
