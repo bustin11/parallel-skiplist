@@ -6,3 +6,6 @@
 objs/
 .vscode
 perf*
+src/*.o
+tests/*.o
+imgs/

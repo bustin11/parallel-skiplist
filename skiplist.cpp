@@ -1,185 +1,157 @@
 
-#include "skiplist.h"
-
 #include <stdlib.h>
 #include <stdio.h>
-#include <time.h>
 #include <vector>
 #include <string>
 #include <assert.h>
 #include <algorithm>
-#include <stack>
-#include <queue>
 #include <functional>
+#include <atomic>
+#include <memory>
 
-#include "debug.h"
+#include "skiplist.h"
+#include "helpers/debug.h"
+#include "helpers/helpers.h"
 
-std::string item2str (item_t item) {
-    return std::to_string(item);
-}
-
-std::string node2str (Node* node) {
-    ASSERT(node);
-    return item2str(node->item);
-}
-
-void printNode(Node* node) {
-    printargs("%s", node2str(node).c_str());
-}
 
 SkipList::SkipList() {
-    srand(time(NULL));
-    this->head = new Node(); // starting dummy node
-    this->head->right.push_back(nullptr);
+    this->head = 
+        new Node(INT32_MIN, this->MAX_LEVEL); // starting dummy node
 }
 
-SkipList::~SkipList() {
+int SkipList::search_prev (key_t key, 
+                            std::vector<Node*>& preds) const {
 
-    Node* curr = this->head->right[0];
-    delete this->head;
+    Node* prev = this->head;
+    int heightOfInsertion = static_cast<int>(preds.size());
+    int keyFound = -1;
+
+    for (int i=heightOfInsertion-1; i>=0; i--) {
+
+        // curr is either the node with the key value, or is guarenteed to be
+        // less than the key value
+        Node* curr = prev->next[i];
+
+        while (curr && key > curr->key) { // hottest instruction
+            prev = curr;
+            curr = prev->next[i];
+        }
+        // finds the top most insertion point
+        if (keyFound < 0 && curr && key == curr->key) {
+            keyFound = i;
+        }
+        if (i < heightOfInsertion) {
+            preds[i] = prev;
+        }
+    }
+
+    return keyFound;
+}
+
+bool SkipList::search (key_t key) const {
+
+    std::vector<Node*> A(this->MAX_LEVEL); // not use :(
+    int found = this->search_prev(key, A);
+    return found >= 0 
+            && A[found]->next[found] 
+            && A[found]->next[found]->key == key;
+
+}
+
+
+bool SkipList::insert (key_t key) {
+
+    int insertedHeight = randomHeight(this->MAX_LEVEL);
+    std::vector<Node*> preds(insertedHeight); // index 0: lowest 
+
+
+    int found = search_prev(key, preds);
+    if (found >= 0) {
+        return false;
+    }
+
+    Node* newNode = 
+        new Node(key, insertedHeight);
+
+    // connect
+    for (int i=0; i<insertedHeight; i++) {
+        newNode->next[i] = preds[i]->next[i];
+        preds[i]->next[i] = newNode;
+    }
+
+    return true;
+
+}
+
+bool SkipList::remove (key_t key) {
+
+    std::vector<Node*> preds(this->MAX_LEVEL); // index 0: lowest 
+
+
+    int found = search_prev(key, preds);
+    if (found < 0) {
+        return false;
+    }
+
+    // disconnect
+    Node* remember = preds[0]->next[0];
+    for (int i=0; i<=found; i++) {
+        preds[i]->next[i] = remember->next[i];
+    }
+    delete remember;
+
+    return true;
+
+}
+
+
+void SkipList::printList () const {
+
+
+    // find the offsets for printing based on level 0
+    std::vector<std::pair<int, Node*>> offsets;
+    Node* curr = this->head->next[0];
+    int offset = 0;
     while (curr) {
-        Node* right = curr->right[0];
-        delete curr;
-        curr = right;
+        offsets.push_back(std::make_pair(offset, curr));
+        std::string itemstr = curr->toStr();
+        offset += static_cast<int>(itemstr.length() + 1);
+        curr = curr->next[0];
     }
-}
 
+    int numOffsets = static_cast<int>(offsets.size());
+    int numRight = static_cast<int>(this->head->next.size());
+    while (!this->head->next[--numRight]) {}
 
-void SkipList::search_prev (item_t item, std::stack<Node*>& predecessors) {
-
-    int numRight = (int)(this->head->right.size());
-    for (int i=numRight-1; i>=0; i--) {
-        Node* curr = this->head; // top-left
-        Node* currRight = curr->right[i];
-        while (currRight && item >= currRight->item) { // currRight->item hottest instruction
-            curr = currRight;
-            currRight = curr->right[i]; // 2nd hottest instruction
+    for (int i=numRight; i>=0; i--) { // horizontal
+        curr = this->head->next[i];
+        int p = 0;
+        int prevLength = 0;
+        for (int j=0; j<numOffsets; j++) { // vertical
+            if (offsets[j].second == curr) {
+                // find difference, subtract for spaces, subtract prevLength
+                // because that doesn't count towards the dashes
+                int numDashes = offsets[j].first-offsets[p].first-prevLength;
+                if (numDashes > 2) {
+                    printf(" ");
+                    for (int k=0; k<numDashes-2; k++) printf("-");
+                    printf(" ");
+                } else {
+                    for (int k=0; k<numDashes; k++) printf(" ");
+                }
+                
+                std::string itemstr = curr->toStr();
+                printf("%s", itemstr.c_str());
+                curr = curr->next[i];
+                p = j;
+                prevLength = static_cast<int>(itemstr.length());
+            } 
         }
-        predecessors.push(curr);
+        printNewLine();
     }
-    // printdebugfmt("pred.size()=%d", (int)predecessors.size())
-}
-
-bool SkipList::search (item_t item) {
-
-    std::stack<Node*> A;
-    search_prev(item, A);
-    ASSERT(A.top());
-    Node* curr = A.top();
-    return curr && curr->item == item;
-}
-
-
-void SkipList::insert_with_height (item_t item, size_t height) {
-
-    std::stack<Node*> predecessors; // NOTE: first element is the newest element
-    search_prev(item, predecessors);
-    ASSERT(predecessors.size() == this->head->right.size());
-    int ancestor = 0;
-
-    Node* hatNode = new Node();
-    hatNode->item = item;
-    do {
-        // left and right
-        Node* onTheLeft;
-        Node* onTheRight;
-        bool addingNewLevel = (ancestor >= (int) this->head->right.size());
-
-        if (!predecessors.empty()) {
-            onTheLeft = predecessors.top();
-            predecessors.pop();
-            onTheRight = !addingNewLevel ? 
-                                onTheLeft->right[ancestor] : nullptr;
-        } else {
-            // this creates a new level
-            onTheLeft = this->head;
-            onTheRight = nullptr;
-        }
-
-        hatNode->left.push_back(onTheLeft);
-        if (addingNewLevel) onTheLeft->right.push_back(hatNode);
-        else onTheLeft->right[ancestor] = hatNode;
-
-        hatNode->right.push_back(onTheRight);
-        if (onTheRight && !addingNewLevel) onTheRight->left[ancestor] = hatNode;
-        ancestor++;
-
-    } while ((height > 0 && ancestor < (int)height) // deterministic
-                    || (height == 0 && (float)rand() / RAND_MAX < .5f)); // random
-
-    printdebugfmt("Inserted %s with height=%d", item2str(item).c_str(), ancestor);
-
-}
-
-void SkipList::insert (item_t item) {
-
-    return insert_with_height(item, 0);
     
 }
 
-
-void SkipList::remove (item_t item) {
-    std::stack<Node*> predecessors; // NOTE: first element is the newest element
-    search_prev(item, predecessors);
-    Node* curr = predecessors.top();
-    if (curr && curr->item == item) {
-        std::vector<Node*> onTheLeft = curr->left;
-        std::vector<Node*> onTheRight = curr->right;
-        for (int i=0; i< (int)onTheLeft.size(); i++) { // numLeft == numRight
-            onTheLeft[i]->right[i] = onTheRight[i];
-            if (onTheRight[i]) onTheRight[i]->left[i] = onTheLeft[i];
-        }
-    }
-    delete curr;
-}
-
-
-void SkipList::printList (){
-
-    if (DEBUG) {
-        // find the offsets for printing based on level 0
-        std::vector<std::pair<int, Node*>> offsets;
-        Node* curr = this->head->right[0];
-        int offset = 0;
-        while (curr) {
-            offsets.push_back(std::make_pair(offset, curr));
-            std::string itemstr = node2str(curr);
-            offset += (int)(itemstr.length() + 1);
-            curr = curr->right[0];
-        }
-
-        int numOffsets = (int) offsets.size();
-        int numRight = (int) this->head->right.size();
-    \
-        for (int i=numRight-1; i>=0; i--) { // horizontal
-            curr = this->head->right[i];
-            int p = 0;
-            int prevLength = 0;
-            for (int j=0; j<numOffsets; j++) { // vertical
-                if (offsets[j].second == curr) {
-                    // find difference, subtract for spaces, subtract prevLength
-                    // because that doesn't count towards the dashes
-                    int numDashes = offsets[j].first-offsets[p].first-prevLength;
-                    if (numDashes > 2) {
-                        print(" ");
-                        for (int k=0; k<numDashes-2; k++) printf("-");
-                        printf(" ");
-                    } else {
-                        for (int k=0; k<numDashes; k++) printf(" ");
-                    }
-                    
-                    std::string itemstr = node2str(curr);
-                    printf("%s", itemstr.c_str());
-                    curr = curr->right[i];
-                    p = j;
-                    prevLength = (int)(itemstr.length());
-                } 
-            }
-            printNewLine();
-        }
-    }
-}
-
-bool SkipList::empty () {
-    return (int)this->head->right.size() == 1;
+bool SkipList::empty () const {
+    return this->head->next[0] == nullptr;
 }
