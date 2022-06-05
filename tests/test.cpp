@@ -228,11 +228,9 @@ bool test12(int numThreads, int seed) {
     }
 
     SkipList* slist = new SkipList();
-    #pragma omp parallel for schedule(dynamic) shared(slist)
     for (int i=0; i<size; i++) {
         slist->insert(A[i]);
     }
-    #pragma omp parallel for schedule(dynamic) shared(slist)
     for (int i=0; i<size; i++) {
         slist->remove(A[i]);
     }

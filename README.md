@@ -48,7 +48,6 @@ Before implementing a concurrent data structure, I wanted to know what is the mo
 ## Installation ([here](https://askubuntu.com/questions/50145/how-to-install-perf-monitoring-tool))
 ```
 sudo apt-get install linux-tools-common linux-tools-generic linux-tools-`uname -r`
-
 ```
 
 ## How to run ([Guide](https://perf.wiki.kernel.org/index.php/Tutorial#Period_and_rate))
@@ -75,6 +74,6 @@ First notice that most of the computation is just in searching and array indexin
 
 ![](imgs/perf_annotate.png)
 
-A fundamental operation of the skiplist (or any data structure) is the search operation. In this case, we see that %61.39 of the samples is the `mov 0x20(%rax),%eax`, the instruction in red. This is what is known as the hottest instruction. Regardless, it's nice to know where most of the operations are going towards, and by doing so we can make tiny differents that lead to huge optimizations, like removing `shared_ptrs`
+A fundamental operation of the skiplist (or any data structure) is the search operation. In this case, we see that 61.39% of the samples is the `mov 0x20(%rax),%eax`, the instruction in red. This is what is known as the hottest instruction. Regardless, it's nice to know where most of the operations are going towards, and by doing so we can make tiny differences that lead to huge optimizations, like removing `shared_ptrs`
 
 To see the results compared to [fine-grain](https://github.com/bustin11/parallel-skiplist/tree/fine-grain), [coarse-grain](https://github.com/bustin11/parallel-skiplist/tree/coarse-grain), go to here [main](https://github.com/bustin11/parallel-skiplist/tree/main)

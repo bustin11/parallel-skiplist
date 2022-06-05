@@ -17,7 +17,6 @@ struct mainArgs_t {
 
 void print_usage () {
     puts("Usage: ./main [-h]"
-        "  -h         Print this help message.\n\n"
         "Options:\n"
         "  -h           Print this help message.\n"
         "  -p <prob>    Probability of Insertion\n\n"
@@ -33,14 +32,11 @@ int main(int argc, char** argv) {
     int opt;
     mainArgs.numThreads = 1;
     mainArgs.p = .5;
-    while ((opt = getopt(argc, argv, "hN:p:")) != -1) {
+    while ((opt = getopt(argc, argv, "hp:")) != -1) {
         switch (opt) {
             case 'h':
                 print_usage();
                 return 0;
-            case 'N':
-                mainArgs.numThreads = atoi(optarg);
-                break;
             case 'p':
                 mainArgs.p = atof(optarg);
                 break;

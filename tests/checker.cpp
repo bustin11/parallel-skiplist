@@ -78,7 +78,7 @@ int main(int argc, char** argv) {
     mainArgs.testID = 0;
     mainArgs.seed = -1;
     mainArgs.numThreads = 1;
-    while ((opt = getopt(argc, argv, "hT:s:N:")) != -1) {
+    while ((opt = getopt(argc, argv, "hT:s:")) != -1) {
         switch (opt) {
             case 'h':
                 print_usage();
