@@ -21,7 +21,7 @@ sudo apt-get install libomp-dev
 ```
 # for just testing
 make test
-tests/test -N <numThreads> -T <>
+tests/test -N <numThreads> -T <test id>
 # for just benchmarking
 make
 src/main -N <numThreads> -T <problem id>
