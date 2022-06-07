@@ -9,6 +9,8 @@
 #include <atomic>
 #include <memory>
 
+#include "omp.h"
+
 typedef int32_t key_t;
 
 class Node {
@@ -73,7 +75,7 @@ class SkipList {
     int search_prev(key_t key, 
     std::vector<Node*>& preds) const;
     Node* head; // very left
-
+    omp_lock_t lock;
     const int MAX_LEVEL = 50;
 
     public:

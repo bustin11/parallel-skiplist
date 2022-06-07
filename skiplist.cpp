@@ -9,6 +9,7 @@
 #include <atomic>
 #include <memory>
 
+#include "omp.h"
 #include "skiplist.h"
 #include "helpers/debug.h"
 #include "helpers/helpers.h"
@@ -65,8 +66,10 @@ bool SkipList::insert (key_t key) {
     std::vector<Node*> preds(insertedHeight); // index 0: lowest 
 
 
+    omp_set_lock(&this->lock);
     int found = search_prev(key, preds);
     if (found >= 0) {
+        omp_unset_lock(&this->lock);
         return false;
     }
 
@@ -78,6 +81,7 @@ bool SkipList::insert (key_t key) {
         newNode->next[i] = preds[i]->next[i];
         preds[i]->next[i] = newNode;
     }
+    omp_unset_lock(&this->lock);
 
     return true;
 
@@ -88,8 +92,10 @@ bool SkipList::remove (key_t key) {
     std::vector<Node*> preds(this->MAX_LEVEL); // index 0: lowest 
 
 
+    omp_set_lock(&this->lock);
     int found = search_prev(key, preds);
     if (found < 0) {
+        omp_unset_lock(&this->lock);
         return false;
     }
 
@@ -99,6 +105,7 @@ bool SkipList::remove (key_t key) {
         preds[i]->next[i] = remember->next[i];
     }
     delete remember;
+    omp_unset_lock(&this->lock);
 
     return true;
 

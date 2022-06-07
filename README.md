@@ -40,40 +40,10 @@ Follow this [youtube link from Geometry Lab](https://www.youtube.com/watch?v=NDG
 
 The skiplist is able to achieve these marks because it uses layers/levels of linked list (visually) stacked on top of each other for *skipping* sections of a normal linked list (which has linear time search), and thus tries to emulate the methodology behind *binary search*. 
 
+# Coarse-Grain
 
-# MetaAnalysis
+Coarse-Grain is an adjective that describes something that is granular but still rough in texture. In the context of locking, a coarse-grain lock locks the entire data structure itself. For example, say there are 2 threads, t0 and t1. If t0 and t1 both want to insert an element, and t1 gets the lock first, then t0 will have to wait until t1 unsets the lock before access to any part of the data structure. This is in constrast to fine-grain locking.
 
-Before implementing a concurrent data structure, I wanted to know what is the most frequently-run instruction so that I can either A) modify it for compilier optimizations, or B) try calling the instruction less. We look into the assembly and perform metrics by running
+Coarse-grain locking is easy to implement since we just place a big ol' lock over the data structure access itself. For few threads and infrequent accesses, coarse-grain can be worth the small downside of slower access times (than fine-grain) for a very easy implementation.
 
-## Installation ([here](https://askubuntu.com/questions/50145/how-to-install-perf-monitoring-tool))
-```
-sudo apt-get install linux-tools-common linux-tools-generic linux-tools-`uname -r`
-```
-
-## How to run ([Guide](https://perf.wiki.kernel.org/index.php/Tutorial#Period_and_rate))
-```
-# creates a perf file
-perf record <executable>
-# creates a summary of most used instructions
-perf report
-# Go assembly mode
-perf annotate
-```
-\* Must be `sudo` or `su` to run `perf`. 
-
-## Results
-
-Before getting results, I must describe what I optimized compared to the concurrent versions. First, single-thread performance is very good because:
-1) We do not have a complex mutex locking mechanism 
-2) We do not keep an array of successors, saving space 
-3) We do not use shared_ptrs. I don't have the images for shared_ptrs, but there is actually a lot of overhead in using shared_ptrs to manage the memory for you.
-
-![](imgs/perf_sequential.png)
-
-First notice that most of the computation is just in searching and array indexing, so all of the focus will be there
-
-![](imgs/perf_annotate.png)
-
-A fundamental operation of the skiplist (or any data structure) is the search operation. In this case, we see that 61.39% of the samples is the `mov 0x20(%rax),%eax`, the instruction in red. This is what is known as the hottest instruction. Regardless, it's nice to know where most of the operations are going towards, and by doing so we can make tiny differences that lead to huge optimizations, like removing `shared_ptrs`
-
-To see the results compared to [fine-grain](https://github.com/bustin11/parallel-skiplist/tree/fine-grain), [coarse-grain](https://github.com/bustin11/parallel-skiplist/tree/coarse-grain), go to here [main](https://github.com/bustin11/parallel-skiplist/tree/main)
+There won't be too much analysis here, since coarse-grain is a trivial adjustment to sequential implementation (just add a lock).

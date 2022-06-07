@@ -34,6 +34,7 @@ void prob_size(int numThreads, int size) {
         fflush(stdout);
         // deletions 
         first = clock();
+        #pragma omp parallel for schedule(dynamic)
         for (int i=0; i<size; i++) {
             slist->remove(A[i]);
         }
@@ -71,6 +72,7 @@ void prob_size_mixed(int numThreads, int size, float p) {
         }
 
         clock_t first = clock();
+        #pragma omp parallel for schedule(dynamic)
         for (int i=0; i<size; i++) {
             if (biased_coin_flip(p)) slist->insert(A[i]);
             else slist->remove(A[i]);

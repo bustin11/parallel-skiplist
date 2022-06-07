@@ -2,6 +2,7 @@
 #include "test.h"
 #include "../helpers/debug.h"
 #include "../skiplist.h"
+#include "omp.h"
 
 #include <stdio.h>
 #include <assert.h>
@@ -80,6 +81,7 @@ bool test5(int numThreads, int seed) {
     }
 
     SkipList* slist = new SkipList();
+    #pragma omp parallel for schedule(dynamic)
     for (int i=0; i<size; i++) {
         slist->insert(A[i]);
         if (DEBUG) slist->printList();
@@ -107,6 +109,7 @@ bool test6(int numThreads, int seed) {
     }
 
     SkipList* slist = new SkipList();
+    #pragma omp parallel for schedule(dynamic)
     for (int i=0; i<size; i++) {
         slist->insert(A[i]);
     }
@@ -203,10 +206,12 @@ bool test11(int numThreads, int seed) {
     }
 
     SkipList* slist = new SkipList();
+    #pragma omp parallel for schedule(dynamic)
     for (int i=0; i<size; i++) {
         slist->insert(A[i]);
     }
     slist->printList();
+    #pragma omp parallel for schedule(dynamic)
     for (int i=0; i<size; i++) {
         slist->remove(A[i]);
         if (DEBUG) slist->printList();
@@ -228,11 +233,11 @@ bool test12(int numThreads, int seed) {
     }
 
     SkipList* slist = new SkipList();
-    #pragma omp parallel for schedule(dynamic) shared(slist)
+    #pragma omp parallel for schedule(dynamic) 
     for (int i=0; i<size; i++) {
         slist->insert(A[i]);
     }
-    #pragma omp parallel for schedule(dynamic) shared(slist)
+    #pragma omp parallel for schedule(dynamic)
     for (int i=0; i<size; i++) {
         slist->remove(A[i]);
     }
@@ -259,11 +264,13 @@ bool test13(int numThreads, int seed) {
 
     // insertions
     SkipList* slist = new SkipList();
+    #pragma omp parallel for schedule(dynamic)
     for (int i=0; i<size; i++) {
         slist->insert(A[i]);
     }
 
     // deletions
+    #pragma omp parallel for schedule(dynamic)
     for (int i=0; i<size; i++) {
         if (biased_coin_flip(p)) slist->insert(A[i]);
         else slist->remove(A[i]);
@@ -293,11 +300,13 @@ bool test14(int numThreads, int seed) {
 
     // insertions
     SkipList* slist = new SkipList();
+    #pragma omp parallel for schedule(dynamic)
     for (int i=0; i<size; i++) {
         slist->insert(A[i]);
     }
 
     // deletions
+    #pragma omp parallel for schedule(dynamic)
     for (int i=0; i<size; i++) {
         if (biased_coin_flip(p)) slist->insert(A[i]);
         else slist->remove(A[i]);
