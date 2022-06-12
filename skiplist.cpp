@@ -13,113 +13,137 @@
 #include "helpers/debug.h"
 #include "helpers/helpers.h"
 
+extern std::hash<key_t> myhash;
 
-SkipList::SkipList() {
-    this->head = 
-        std::make_shared<Node>(INT32_MIN, this->MAX_LEVEL); // starting dummy node
+template<typename T>
+SkipList<T>::SkipList() {
+    this->head = new Node(INT32_MIN, MAX_LEVEL);
+    this->tail = new Node(INT32_MAX, MAX_LEVEL);
+    for (int i=0; i<MAX_LEVEL; i++) {
+        this->head->next[i].set(
+            tail,
+            false
+        );
+    }
 }
 
-int SkipList::search_prev (key_t key, 
-                            std::vector<std::shared_ptr<Node>>& preds,
-                            std::vector<std::shared_ptr<Node>>& succs) const {
+template<typename T>
+SkipList<T>::~SkipList() {
+    Node* prev = head;
+    while (prev) {
+        Node* curr = prev->next[0].get_reference();
+        delete prev;
+        prev = curr;
+    }
+}
 
-    std::shared_ptr<Node> prev = this->head;
+template<typename T>
+bool SkipList<T>::search_prev (T val, 
+                            std::vector<Node*>& preds,
+                            std::vector<Node*>& succs) {
+
+    key_t key = myhash(val); 
     int heightOfInsertion = static_cast<int>(preds.size());
-    int keyFound = -1;
+    Node* prev = nullptr;
+    Node* curr = nullptr;
+    Node* succ = nullptr;
 
-    for (int i=heightOfInsertion-1; i>=0; i--) {
-
-        // curr is either the node with the key value, or is guarenteed to be
-        // less than the key value
-        std::shared_ptr<Node> curr = prev->next[i];
-
-        while (curr && key > curr->key) {
-            prev = curr;
-            curr = prev->next[i];
-        }
-        // finds the top most insertion point
-        if (keyFound < 0 && curr && key == curr->key) {
-            keyFound = i;
-        }
-        if (i < heightOfInsertion) {
+    retry:
+    while (true) {
+        prev = this->head;
+        for (int i=heightOfInsertion-1; i>=0; i--) {
+            curr = prev->next[i].get_reference();
+            succ = nullptr;
+            while (true) {
+                bool mark;
+                succ = curr->next[i].get(mark);
+                // continue snipping, because multiple marked nodes
+                // can be present in a row
+                while (mark) {
+                    bool snip = prev->next[i].CAS(curr, succ, false, false);
+                    if (!snip) goto retry;
+                    curr = prev->next[i].get_reference();
+                    succ = curr->next[i].get(mark);
+                }
+                // Can we keep going?
+                if (curr->key < key) {
+                    prev = curr;
+                    curr = succ;
+                } else {
+                    break;
+                }
+            }
             preds[i] = prev;
             succs[i] = curr;
         }
+        return key == curr->key;
     }
 
-    return keyFound;
-}
-
-bool SkipList::search (key_t key) const {
-
-    std::vector<std::shared_ptr<Node>> A(this->MAX_LEVEL); // not use :(
-    std::vector<std::shared_ptr<Node>> B(this->MAX_LEVEL);
-    int found = this->search_prev(key, A, B);
-    return found >= 0 && B[0] 
-        && B[0]->key == key && B[0]->is_fully_linked()
-        && (!B[0]->is_marked());
+    // SHOULD NOT REACH HERE
+    return false;
 
 }
 
+template<typename T>
+bool SkipList<T>::search (T val) const {
 
-bool SkipList::insert (key_t key) {
+    key_t key = myhash(val); 
+    Node* prev = head;
+    Node* curr = nullptr;
+    Node* succ = nullptr;
 
-    int insertedHeight = randomHeight(this->MAX_LEVEL);
-    std::vector<std::shared_ptr<Node>> preds(insertedHeight); // index 0: lowest 
-    std::vector<std::shared_ptr<Node>> succs(insertedHeight); // index 0: lowest 
-
-    while (true) {
-
-        int found = search_prev(key, preds, succs);
-        if (found >= 0) {
-            if (succs[found] && !succs[found]->is_marked()) {
-                // spin to avoid calling search_prev again
-                while (!succs[found]->is_fully_linked()) {}
-                return false;
+    for (int i=MAX_LEVEL-1; i>=0; i--) {
+        curr = prev->next[i].get_reference();
+        while (true) {
+            bool mark;
+            succ = curr->next[i].get(mark);
+            while (mark) {
+                succ = succ->next[i].get(mark);
             }
-            continue;
-        }
-
-        // aquire predecessor locks
-        bool abort = false;
-        std::vector<std::shared_ptr<Node>> locksAquired;
-        for (int i=0; i<insertedHeight; i++) {
-
-            std::shared_ptr<Node> pred = preds[i];
-
-            bool predMarked = pred->is_marked();
-            bool alreadyLocked = !omp_test_lock(&pred->lock);
-            if (!alreadyLocked) locksAquired.push_back(pred);
-            bool notSeenPred = (i == 0 || pred != preds[i-1]);
-            bool stillLinked = succs[i] == pred->next[i];
-
-            if ((alreadyLocked && notSeenPred) 
-                || predMarked
-                || !stillLinked) {
-                abort = true;
+            if (curr->key < key) {
+                prev = curr;
+                curr = succ;
+            } else {
                 break;
             }
         }
-        if (abort) {
-            for (auto& pred : locksAquired) {
-                omp_unset_lock(&pred->lock);
-            }
+    }
+    
+    return key == curr->key;
+
+}
+
+template<typename T>
+bool SkipList<T>::insert (T val) {
+
+    int insertedHeight = randomHeight(MAX_LEVEL);
+    std::vector<Node*> preds(insertedHeight); // index 0: lowest 
+    std::vector<Node*> succs(insertedHeight); // index 0: lowest 
+
+    while (true) {
+        if (search_prev(val, preds, succs)) {
+            return false;
+        }
+
+        Node* newNode = new Node(val, insertedHeight);
+        for (int i=0; i<insertedHeight; i++) {
+            newNode->next[i].set(succs[i], false);
+        }
+
+        Node* pred = preds[0];
+        Node* succ = succs[0];
+        if (!pred->next[0].CAS(succ, newNode, false, false)) {
             continue;
         }
 
-        std::shared_ptr<Node> newNode = 
-            std::make_shared<Node>(key, insertedHeight);
-
         // connect
-        for (int i=0; i<insertedHeight; i++) {
-            newNode->next[i] = preds[i]->next[i];
-            preds[i]->next[i] = newNode;
-        }
-
-        newNode->set_fully_linked();
-
-        for (auto& pred : locksAquired) {
-            omp_unset_lock(&pred->lock);
+        for (int i=1; i<insertedHeight; i++) {
+            while (true) {
+                pred = preds[i];
+                succ = succs[i];
+                if (pred->next[i].CAS(succ, newNode, false, false)) break;
+                search_prev(val, preds, succs);
+            }
         }
 
         return true;
@@ -131,79 +155,40 @@ bool SkipList::insert (key_t key) {
     
 }
 
-bool SkipList::remove (key_t key) {
+template<typename T>
+bool SkipList<T>::remove (T val) {
 
-    // int threadID = omp_get_thread_num();
-    std::vector<std::shared_ptr<Node>> preds(this->MAX_LEVEL); // index 0: lowest 
-    std::vector<std::shared_ptr<Node>> succs(this->MAX_LEVEL); // index 0: lowest 
-    bool marked = false; // if victim marked, don't need to check preconditions
-                         // all the time in a while true loop
+    std::vector<Node*> preds(MAX_LEVEL); // index 0: lowest 
+    std::vector<Node*> succs(MAX_LEVEL); // index 0: lowest 
+    SkipList<T>::Node* succ;
 
     while (true) {
 
-        std::shared_ptr<Node> victim;
-        int found = search_prev(key, preds, succs);
-        if (found >= 0) victim = succs[found];
-        if (marked ||
-            // preconditions
-            (found >= 0 &&
-            found+1 == victim->height &&
-            victim->is_fully_linked() &&
-            !victim->is_marked())) { // being removed
-
-            // aquire victim lock
-            if (!marked) {
-                if (victim->is_marked()) {
-                    return false;
-                }
-                if (!omp_test_lock(&victim->lock)) {
-                    continue;
-                }
-                marked = true;
-                victim->set_marked();
-            }
-            int height = victim->height;
-
-            // aquire predecessor locks
-            bool abort = false;
-            std::vector<std::shared_ptr<Node>> locksAquired;
-            for (int i=0; i<height; i++) {
-
-                std::shared_ptr<Node> pred = preds[i];
-
-                bool predMarked = pred->is_marked();
-                bool alreadyLocked = !omp_test_lock(&pred->lock);
-                if (!alreadyLocked) locksAquired.push_back(pred);
-                bool notSeenPred = (i == 0 || pred != preds[i-1]);
-                bool stillLinked = succs[i] == pred->next[i];
-
-                if ((alreadyLocked && notSeenPred) 
-                    || predMarked 
-                    || !stillLinked) {
-                    abort = true;
-                    break;
-                }
-            }
-            if (abort) {
-                for (auto& pred : locksAquired) {
-                    omp_unset_lock(&pred->lock);
-                }
-                continue;
-            }
-
-            // detach
-            for (int i=0; i<height; i++){
-                preds[i]->next[i] = victim->next[i];
-            }
-
-
-            for (auto& pred : locksAquired) {
-                omp_unset_lock(&pred->lock);
-            }
-
-            return true;
-        } else {
+        if (!search_prev(val, preds, succs)) {
             return false;
+        }
+
+        bool mark;
+        Node* victim = succs[0];
+        for (int i=victim->height-1; i>=1; i--) {
+            succ = victim->next[i].get(mark);
+            while (!mark) {
+                victim->next[i].CAS(succ, succ, false, true);
+                succ = victim->next[i].get(mark);
+            }
+        }
+
+        succ = victim->next[0].get(mark);
+
+        while (true) {
+            bool myMark = victim->next[0].CAS(succ, succ, false, true);
+            succ = succs[0]->next[0].get(mark);
+            if (myMark) {
+                search_prev(val, preds, succs);
+                return true;
+            } else if (mark) {
+                return false;
+            }
         }
 
     }
@@ -213,27 +198,27 @@ bool SkipList::remove (key_t key) {
 
 }
 
-
-void SkipList::printList () const {
+template<typename T>
+void SkipList<T>::printList () const {
 
 
     // find the offsets for printing based on level 0
-    std::vector<std::pair<int, std::shared_ptr<Node>>> offsets;
-    std::shared_ptr<Node> curr = this->head->next[0];
+    std::vector<std::pair<int, Node*>> offsets;
+    Node* curr = this->head->next[0].get_reference();
     int offset = 0;
-    while (curr) {
+    while (curr != this->tail) {
         offsets.push_back(std::make_pair(offset, curr));
         std::string itemstr = curr->toStr();
         offset += static_cast<int>(itemstr.length() + 1);
-        curr = curr->next[0];
+        curr = curr->next[0].get_reference();
     }
 
     int numOffsets = static_cast<int>(offsets.size());
     int numRight = static_cast<int>(this->head->next.size());
-    while (!this->head->next[--numRight]) {}
+    while (numRight > 0 && this->head->next[--numRight].get_reference() == this->tail) {}
 
     for (int i=numRight; i>=0; i--) { // horizontal
-        curr = this->head->next[i];
+        curr = this->head->next[i].get_reference();
         int p = 0;
         int prevLength = 0;
         for (int j=0; j<numOffsets; j++) { // vertical
@@ -251,7 +236,7 @@ void SkipList::printList () const {
                 
                 std::string itemstr = curr->toStr();
                 printf("%s", itemstr.c_str());
-                curr = curr->next[i];
+                curr = curr->next[i].get_reference();
                 p = j;
                 prevLength = static_cast<int>(itemstr.length());
             } 
@@ -261,6 +246,12 @@ void SkipList::printList () const {
     
 }
 
-bool SkipList::empty () const {
-    return this->head->next[0] == nullptr;
+template<typename T>
+bool SkipList<T>::empty () const {
+
+    return this->head->next[0].get_reference() == this->tail;
 }
+
+
+// force compilier to instantiate T=int
+template class SkipList<int>;

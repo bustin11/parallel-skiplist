@@ -18,7 +18,7 @@ void prob_size(int numThreads, int size) {
     for (int j=0; j<3; j++) {
         printf(", %d", 2*j+1);
         fflush(stdout);
-        SkipList* slist = new SkipList();
+        SkipList<int>* slist = new SkipList<int>();
         std::vector<key_t> A;
         for (int i=0; i<size; i++) {
             A.push_back(rand()%size);
@@ -67,7 +67,7 @@ void prob_size_mixed(int numThreads, int size, float p) {
     for (int j=0; j<3; j++) {
         printf(", %d", j+1);
         fflush(stdout);
-        SkipList* slist = new SkipList();
+        SkipList<int>* slist = new SkipList<int>();
         std::vector<key_t> A;
         for (int i=0; i<size; i++) {
             A.push_back(rand()%(size/10));

@@ -17,7 +17,6 @@ struct mainArgs_t {
 
 void print_usage () {
     puts("Usage: ./main [-h]"
-        "  -h         Print this help message.\n\n"
         "Options:\n"
         "  -h           Print this help message.\n"
         "  -N <Threads> Number of threads to launch\n\n"

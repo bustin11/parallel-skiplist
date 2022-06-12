@@ -1,13 +1,12 @@
 
-#include "test.h"
-#include "../helpers/debug.h"
-#include "../skiplist.h"
-
 #include <stdio.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <time.h>
 
+#include "../helpers/debug.h"
+#include "../skiplist.h"
+#include "test.h"
 #include "omp.h"
 
 
@@ -15,13 +14,15 @@ bool test1() {
 
     printf("Test 1[Simple]: \n");
 
-    SkipList* slist = new SkipList();
+    SkipList<int>* slist = new SkipList<int>();
     printdebug("Insertion")
     slist->insert(11); // height == 1
     printdebug("Printing")
     slist->printList();
     printdebug("Checking")
     bool valid = slist->search(11);
+
+    delete slist;
     return valid;
 }
 
@@ -29,7 +30,7 @@ bool test2() {
 
     printf("Test 2[1 insertions at front]: \n");
 
-    SkipList* slist = new SkipList();
+    SkipList<int>* slist = new SkipList<int>();
     printdebug("Insertion")
     slist->insert(11);
     if (DEBUG) slist->printList();
@@ -38,6 +39,8 @@ bool test2() {
     slist->printList();
     printdebug("Checking")
     bool valid = slist->search(11) && slist->search(5);
+
+    delete slist;
     return valid;
 }
  
@@ -45,7 +48,7 @@ bool test3() {
 
     printf("Test 3[1 insertions at back]: \n");
 
-    SkipList* slist = new SkipList();
+    SkipList<int>* slist = new SkipList<int>();
     printdebug("Insertion")
     slist->insert(5);
     if (DEBUG) slist->printList();
@@ -54,12 +57,14 @@ bool test3() {
     slist->printList();
     printdebug("Checking")
     bool valid = slist->search(11) && slist->search(5);
+
+    delete slist;
     return valid;
 }
 
 bool test4() {
     printf("Test 4[1 insertions in the middle]: \n");
-    SkipList* slist = new SkipList();
+    SkipList<int>* slist = new SkipList<int>();
     slist->insert(2);
     if (DEBUG) slist->printList();
     slist->insert(11);
@@ -67,6 +72,8 @@ bool test4() {
     slist->insert(5);
     slist->printList();
     bool valid = slist->search(2) && slist->search(5) && slist->search(11);
+
+    delete slist;
     return valid;
 }
 
@@ -83,7 +90,7 @@ bool test5(int numThreads, int seed) {
         A.push_back(rand()%size);
     }
 
-    SkipList* slist = new SkipList();
+    SkipList<int>* slist = new SkipList<int>();
     #pragma omp parallel for schedule(dynamic) shared(slist)
     for (int i=0; i<size; i++) {
         slist->insert(A[i]);
@@ -98,6 +105,8 @@ bool test5(int numThreads, int seed) {
             invalid = true;
         }
     }
+
+    delete slist;
     return !invalid;
 }
 
@@ -113,7 +122,7 @@ bool test6(int numThreads, int seed) {
         A.push_back(rand()%size);
     }
 
-    SkipList* slist = new SkipList();
+    SkipList<int>* slist = new SkipList<int>();
     #pragma omp parallel for schedule(dynamic) shared(slist)
     for (int i=0; i<size; i++) {
         slist->insert(A[i]);
@@ -127,13 +136,15 @@ bool test6(int numThreads, int seed) {
             invalid = true;
         }
     }
+
+    delete slist;
     return !invalid;
 }
 
 bool test7() {
     printf("Test 7[Simple]: \n");
 
-    SkipList* slist = new SkipList();
+    SkipList<int>* slist = new SkipList<int>();
     printdebug("Insertion")
     slist->insert(11); // height == 1
     printdebug("Printing")
@@ -144,6 +155,8 @@ bool test7() {
     slist->printList();
     printdebug("Checking")
     bool valid = slist->empty();
+
+    delete slist;
     return valid;
 }
 
@@ -151,7 +164,7 @@ bool test8() {
 
     printf("Test 8[1 deletion at front]: \n");
 
-    SkipList* slist = new SkipList();
+    SkipList<int>* slist = new SkipList<int>();
     printdebug("Insertion")
     slist->insert(11);
     slist->insert(5);
@@ -160,8 +173,11 @@ bool test8() {
     printdebug("removing")
     slist->remove(5);
     if (DEBUG) slist->printList();
+    slist->printList();
     printdebug("Checking")
     bool valid = slist->search(11) && !slist->search(5);
+
+    delete slist;
     return valid;
 }
 
@@ -169,7 +185,7 @@ bool test9() {
 
     printf("Test 9[1 deletion at back]: \n");
 
-    SkipList* slist = new SkipList();
+    SkipList<int>* slist = new SkipList<int>();
     printdebug("Insertion")
     slist->insert(5);
     slist->insert(11);
@@ -186,7 +202,7 @@ bool test9() {
 bool test10() {
 
     printf("Test 10[1 deletion in the middle]: \n");
-    SkipList* slist = new SkipList();
+    SkipList<int>* slist = new SkipList<int>();
     slist->insert(2);
     slist->insert(11);
     slist->insert(5);
@@ -212,7 +228,7 @@ bool test11(int numThreads, int seed) {
         A.push_back(rand()%size);
     }
 
-    SkipList* slist = new SkipList();
+    SkipList<int>* slist = new SkipList<int>();
     #pragma omp parallel for schedule(dynamic) shared(slist)
     for (int i=0; i<size; i++) {
         slist->insert(A[i]);
@@ -240,7 +256,7 @@ bool test12(int numThreads, int seed) {
         A.push_back(rand()%size);
     }
 
-    SkipList* slist = new SkipList();
+    SkipList<int>* slist = new SkipList<int>();
     #pragma omp parallel for schedule(dynamic) shared(slist)
     for (int i=0; i<size; i++) {
         slist->insert(A[i]);
@@ -272,7 +288,7 @@ bool test13(int numThreads, int seed) {
     }
 
     // insertions
-    SkipList* slist = new SkipList();
+    SkipList<int>* slist = new SkipList<int>();
     #pragma omp parallel for schedule(dynamic) shared(slist)
     for (int i=0; i<size; i++) {
         slist->insert(A[i]);
@@ -309,7 +325,7 @@ bool test14(int numThreads, int seed) {
     }
 
     // insertions
-    SkipList* slist = new SkipList();
+    SkipList<int>* slist = new SkipList<int>();
     #pragma omp parallel for schedule(dynamic) shared(slist)
     for (int i=0; i<size; i++) {
         slist->insert(A[i]);
