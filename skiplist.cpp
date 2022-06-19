@@ -97,7 +97,8 @@ bool SkipList<T>::search (T val) const {
         while (true) {
             bool mark;
             succ = curr->next[i].get(mark);
-            while (mark) {
+            while (mark) { // skip over marked 
+                curr = succ;
                 succ = succ->next[i].get(mark);
             }
             if (curr->key < key) {
@@ -183,10 +184,10 @@ bool SkipList<T>::remove (T val) {
         while (true) {
             bool myMark = victim->next[0].CAS(succ, succ, false, true);
             succ = succs[0]->next[0].get(mark);
-            if (myMark) {
+            if (myMark) { // i marked it, so let's delete it
                 search_prev(val, preds, succs);
                 return true;
-            } else if (mark) {
+            } else if (mark) { // already marked, no need to delete
                 return false;
             }
         }

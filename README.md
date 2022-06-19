@@ -21,7 +21,7 @@ sudo apt-get install libomp-dev
 ```
 # for just testing
 make test
-tests/test -N <numThreads> -T <>
+tests/test -N <numThreads> -T <problem id>
 # for just benchmarking
 make
 src/main -N <numThreads> -T <problem id>
@@ -53,120 +53,95 @@ In the following sections, I will assume you are familiar with these terms:
 **Level**  | The level is the horizontal cross section of the skiplist. For a skiplist of height 5, there are 5 different levels.
 
 
-In the code, we maintain the **skiplist property**, where higher levels are sublists of lower levels.
+In the code, we *attempt* to maintain the **skiplist property**, where higher levels are sublists of lower levels.
 
 Finally, whenever I mention `delete`, it is defined as `remove` in the code itself. (Insert is still insert)
 
-# Fine-Grain Locking
-Fine-Grain Locking involves locking subparts of the data structure so that other threads aren't completeing blocked from also accessing the data structure. But there are many issues we have to deal with:
+# Lock-Free
+When we describe a data-structure that is *lock-free* or non-blocking, we mean to say that there is guaranteed system-wide progress. Wait-free, a stronger term, describes data-structures that make per-thread progress. A nice example (if you have kids) is to tell your kids to clean the house when they are out for dinner. When they come back, the house is clean. That is system-wide progress. But we don't know whether each kid did their share of work. Maybe the older sibling did all of the work while the younger one played with legos. A more concrete illustration occurs when some threads are blocked while other threads continue working. That is not per-thread progress. Wait-free is a stronger guarantee than lock-free, though sometimes the two terms are conflated.
 
-## Deadlock
-A situation in a multi-threaded program where 2+ threads are waiting for *each other's* resource (in this case, a lock), and no system-wide progress can be made. Here is a fun analogy: Imagine there are 2 treasure chests, and there are 2 keys that unlock each other's treasure chest. Now if Chest A is locked with Key B, and Chest B is locked with Key A, then no one can open either chests. 
+We can achieve lock-free programming through the usage of [atomics](https://en.cppreference.com/w/cpp/atomic/atomic). In a similar manner that atoms are the "smallest" unit of matter that cannot be broken into multiple pieces, atomics (in c++) are wrappers that allow us update pointers or variable in "one shot". Now who cares? Well this solves the [ABA problem](https://en.wikipedia.org/wiki/ABA_problem#:~:text=In%20multithreaded%20computing%2C%20the%20ABA,indicate%20%22nothing%20has%20changed%22.) TL;DR, when multiple threads read-modify-write a variable, one thread may read a stale value, but atomics prevent this issue by bundling the read-modify-write operation in a package. 
 
-A neat trick we can employ is to grab locks in an *ordered* fashion. In my code, each thread aquires locks in acsending order. We can ensure the absence of deadlock by consider any two locks. Say Thread 1 is holding Lock A, and Thread 2 is holding Lock B. As you can imagine, there is no way where *both* Thread 1 is waiting for Lock A and Thread 2 is waiting for Lock B *if* we require all threads grab in acending order (from lower levels to higher levels)
+In the lock-free version, we won't be able to main tain the skiplist property, unlike in the fine-grain version.
 
-![](imgs/lock_ordering.jpeg)
+## Linearizability 
+(credit to The Art of Multiprocessor Programming)
+**Linearizability** is the notion that preserves the real-time behavior of a method at instantaneous moments. Most non-blocking data structures invoke this property, and it will help us formalize and prove that our operations are not enduring race conditions. With linearizability, we can theoretically catalogue when each method was called, and put each timestamp in a record book. If someone who has never read the code, opened the record book, and tried to deduce what the skiplist contained, they would be able to do it successfully. This is what is nice about linearizability. It's stronger than **sequential consistency** because it relates to *time* rather than *program order*. In real world systems, methods take some fraction of time to perform, which is why we care about linearization so much.
 
-## Livelock
-A situation where supposed system-wide progress is made (because print statements, logs, or threads are showing progress) but in reality, no progress is made due to locks aquiring and releasing locks in a circular loop. An analogy is when 4 cars arrive at an intersection with no stoplight. If all cars reacted the same way, they would all back up so that other cars could cross the intersection. However, if all cars did that, then no cars would cross the intersection. But the "supposed" progress is that we observe the cars moving, but in reality, they are just backing in and out. 
-
-Livelock is difficult to identify because it's naturally sneaky and deceptive. Because we ensure that all locks are aquired in an acsending manner, we know that if a thread fails grabbing a lock, then another thread must hold that lock. But if another thread is holding that lock, then either that thread is waiting for another lock, or it has reached the highest level (so *it's* the holder of that lock). Then we know there is system-wide progress, since once a Thread reaches the highest level, if can perform the subsequent delete or insert operation.
-
-(Insert Image, cars moving back and forth)
-
-## Starvation
-Starvation is a matter of fairness. It's a situation where one or more threads are lacking progress for the vitality or progress of other threads. Going back to the Livelock analogy, we can think of just 2 cars driving oncoming and parallel to each, while the other 2 cars are always waiting, stopped at the light, watching the cars drive by. 
-
-There are many ways to ensure fairness. For example, we can use backoff (where a thread that fails to aquire a lock sleeps or does other work before returing the aquire the lock), a ticket lock (where each thread aquires a unique ticket number, and is only allowed to access the lock once the ticket is "called"), an array lock (a ticket lock where each ticket number is padded to reduce traffic interconnect), a queue-based lock(here is nice [read](https://www.quora.com/How-does-an-MCS-lock-work)). *However*, in our code, we must succumb to the implementation of `omp_set_lock` or `omp_test_lock`, neither of which ensures fairness
+We can identify where each *Linearization point* occurs in `insert` and `delete`. 
 
 # Implementation Details
-Here, I will go through what I did for each interface of the skiplist. I will also go through the design process as well as the struggles that lead me to my solutions. 
+Here we will describe some subtle details when implementing a lock-free skiplist. 
 
-## Iteration 1 (Per-Level Mutex Locking)
-My 1st idea was to build upon the idea behind ["Monkey Bar" Locking](http://courses.csail.mit.edu/6.852/08/lectures/Lecture21.pdf). In summary, when traversing a concurrent linked list, we must hold *at least* 1 lock at a time, like swinging on Monkey bars. In other words, when performing a `delete` or `insert` operation, we never release the *prev* lock. And we can guarentee that no other thread is holding the *curr* lock since we maintain the invariant that all threads must hold the *prev* to perform a delete or insertion, thus *curr* should be safe to `delete` or `insert` in between. If we think about a running a track race, *prev* is the racer, and *curr* is the pacer.
+## Marking
+Like in the [fine-grain](https://github.com/bustin11/parallel-skiplist/tree/fine-grain) version, we will continue to use the idea of marking. **Marking** a node means that it is logically deleted. We say "logically" because it is up to the desginer to determine how the node will be physically deleted. A node could be physically there but logically removed. If this doesn't make sense now, it will be cleared later how we will use marking and what is meant by logical vs. physical operations. Unlike the fine-grain version, we do not keep the idea of *fully-linked* nodes.
 
-![](imgs/Racer_pacer.jpeg)
+## Atomics
+Now marking a node should really be marking the connection to a node. Therefore, we need to support atomic updating of whether a node is marked. We do this by first wrapping each node to be a `MarkableReference`.
+```
+template typename<T>
+struct alignas(8) MarkableReference {
+    T* next;
+    bool mark;
+}
+```
+Then we can wrap this with another struct to form an `AtomicMarkableReference`. The `alignas(8)` ensures that the struct is 8-byte aligned on a 32-bit system. For 64-bit systems, use the `-m32` flag.
+```
+template typename<T>
+struct AtomicMarkableReference {
+    atomic<MarkableReference<T>> reference;
+    T* get_reference();                     // returns a reference
+    T* get(bool& mark);                     // returns reference, with mark
+    void set(T* newRef);                    // set reference
+    void set_marked();                      // set reference and mark
+    bool CAS(T* expected, T* newRef         // compare and swap, return true if success
+    , bool expectedMark, bool newMark)
+}
+```
+The `templates` are there to form generic classes. We can then use these templates to form atomic nodes, which is type `T`. 
 
-Now with this in mind, we can try to perform Monkey Bar Locking on a *per-level* basis. For example, node 3 will have 3 locks. What this entails is that multiple threads can access the same node (but on different levels) 
+One question that might be asked is why I go over the implementation of the atomic markable references. "I only care about the algorithm and logic that went behind". If this is you, then you are either incredibly smart with object-oriented design, or jump to hasty to conclusions. Either way, when you look at the `atomics` class in c++, it is a little annoying to write lots of code to load just one reference, so hiding this and adding an abstraction is vital for maintaing the code and understanding it.
 
+## Insertion
+Finally, we come to 1 of the 3 main operations of this skiplist: `insert`. Of course, we search for the insertion point and collect the predecessors first before performing the following steps:
 
-However, I quickly realize that this will not work due to race conditions. For example: Suppose we try to insert node 11 into the list. Then we would have to lock nodes 10 and 18 at some point. When this happens, we make the connections between nodes 10 and 11, and nodes 11 and 18. However, once it releases those locks for locks 10 and 16 (1 level down), another thread could aquire lock 11 to delete it, causing nasty race conditions, or raising the issue of fairness.
+![](imgs/Insertion.jpg)
 
-We must look for a coarser solution
+1) First we create a node (highlighted in green) and try to set the `next` links to its successors. However, we must be sure that the successors are NOT marked, because marked nodes are logically deleted. We don't need to worry about this because the `search` function will handle returning valid unmarked nodes. 
+2) We define a "logical insertion" as when the very bottom link is added. In other words, we not only connect `newNode -> succ`, but we also need to compare-and-swap `pred -> newNode`. What this means is that we must add these links from top to bottom so that all connections are made prior to the point of linearization. The choice is arbitrary, but explaining this detail is helpful for those who are curious
+3) Now from 2) we know that the node is logically added, but it isn't physically. We take care of this by setting the predecessor links to the new node. But what if the predecessors have changed (race-conditions)? ie What if node 10 got deleted? Then we must re`search` the predecessors again. We must use a compare-and-swap to perform this operation atomically. We compare the `pred->next` to `succ` to make sure the preds are right before the succs before we make the pred connections.
 
-## Iteration 2 (Single-Node Mutex Locking)
-The next natural idea is to give 1 lock per node. This solves a couple of issues and has some benefits.
+Now the keen reader will realize that the addition of this operation will not maintain the skiplist property. Consider this example:
 
-1) Per-Node Locking is still cheaper than protecting the entire data structure.
-2) We can ensure the locked node itself is not deleted, or been tampered with.
-3) We can safely traverse to the neighbors of the locked node because we know, no other thread has inserted a node in between the locked node and its neighbors, or has deleted one of its neighbors. This solves a race condition of reassigning different neighbors, maintaining the skiplist property, and ensuring that memory accesses are safe.
+![](imgs/Skiplist_property.jpg)
 
-Therefore, when searching for an insertion or deletion point, we must remember its *predecessors*. 
+You will notice that the green and orange nodes are not on level 2, but on level 1 and 3. How did this happen? In step 1), we ensure that we link the successors with the newnode. In step 3) if we fail with predecessors, we re`search` to update the predecessors, but we don't update the successors. This can lead to an example like above. Suppose thread 1 is inserting the green node and thread 2 is inserting the orange node. Both nodes are logically added at level 1. Now if thread 2 inserts first, then the green node's successor has changed. Thread 1 notices that change, so it re`searches` ostensible preds and succs. Then we do step 3) for level 2, but succeed on making a connection to the same successor (the rightmost node). The operation succeeds because the succs haven't changed w.r.t. the predecessors. So both green and orange don't succeed being on level 2. On level 3, thread 1 inserts first. As practice, you can reason that thread 2 will recognize this and properly insert.
 
-![](imgs/predesccors.jpeg)
+## Deletion
 
-The predecessors are like the backward's neighbors of a node if you will. It is an array(or vector) of *prev* (or racer) nodes that can modify the immediate neighbor connections. If we can lock all the predecessors, then we should be able to perform safe insertions and deletions. 
+To designate a node as logically deleted, we must mark its successor links. Of course, we first identify whether the node already exists. If it does, then we follow the subsequent steps below.
 
-However, there are still many issues and uncertainties with this design
-- How do threads grab/release locks?
-- If a thread is *spin-locking*, waiting for another thread to release a lock, how do we know if that node is being deleted? 
-- Can we insert a node with the same value if it has not been fully deleted?
-- Can we delete a node that hasn't been fully-linked?
-- When inserting a node, what happens when the successors change?
+![](imgs/Deletion.jpg)
 
-As you can imagine, there are many cases that we must handle. Rather than lay them all out for you, I will present the solution that I came up with after read *The Art of Multiprocessor Programming, 2012*
+1. We first try to mark the successor links. If they are already marked then we go to the next level. If it isn't already marked, then we try to mark it. If you look into the code, you'll notice there is a while loop until we mark it. It's very important to ensure that the succs are not marked when you try to mark it, and that the succs are still the same. This is why use a compare-and-swap.
+2. The linearization point occurs when we mark the bottom most node. This is the logial deletion step. It's very important to ensure that current thread is the one that is marking the victim. Why? Because we don't want to have two threads delete the same node. This point also severs or *snips* the node out of existence.
+3. We then, from bottom to top, mark the successor links for termination. This seems odd. We don't actually (physically) remove the links, but instead mark them deletion? Well, this is where `search` comes in. We call `search` operation. This seems odd, but the search will "clean up" any nodes that are marked for deletion. Like cookie crumbs we need to leave no trace of the nodes existence by completing the physical deletion
 
-## Iteration 2.1 (Wait-Free Search)
-I decided to go for a *Wait-Free* approach for searching because Searching is a read-only operation. Therefore, if I could avoid conjuring read-locks so I could make the concurrent skiplist faster since insertion and deletion rely on search operations. A Wait-Free (or Lock-free) algorithm is one where there is *per-thread* progress. This is subtly different from *system-wide* progress. In per-thread, we know everyone is making progress, while in system-wide, we know at least 1 thread is making progress. 
+## Search
 
-The approach is simliar to a linked list search, we maintain a prev and curr pointer, and once we travel too far, we jump down a level in O(1) time. Why? Well we still access the same node in memory, causing less cache coherance traffic.
+As the easiest operation to understand in the fine-grain version, this will be the hardest to fully grasp its implementation
 
-Afterwards, we store the predecessors and successors to be used later on to ensure the local data structure while searching hasn't changed
+![](imgs/Search.jpg)
 
-## Iteration 2.2 (Fine-Grain `Insert`)
+As with a usual search operation, we start from the highest level, skip nodes quickly at the top, and then descend to the lower levels with more precision. However when we find a marked node, we must physically delete ourselves. This will involve a compare-and-swap operation. We do not traverse marked links beccause they are logically deleted. Therefore, we must continually traverse the current level until we find one that is not marked (not in red). 
 
-A picture is worth a thousand words
+In the example above, when we search for 10, when we find node 3, we set its predecessors next to 7. Then go to 7. We then discover that 7 is also marked, so we got 10. We do this for all levels until level 1. The bottom picture represents what happens.
 
-![](imgs/Inserting.jpeg)
+There is actually a very subtle detail for the astute learners. You might be wondering what happens in the case where a node is being inserted? Well there is no way it was marked because it would have been "snipped out" by the search operation. If a node is in the skiplist, then it will for surely be on the bottom level. Therefore, whether the node is in the process of being inserted, or already inserted, or marked, we know that (respectively) the node will be found, will be found, and will not be found *if* we compare the current key with the bottom most key.
 
-We can see here that node 11 is being inserted while the predecessors (in red) and successors (in green) need to be locked[^1]. Why is that the case? Well if first I need to search whether the element exists (otherwise it wouldn't be an ordered set if I inserted whatever I wanted). Then I need to make sure noone else has the predecessors because some other thread could delete the node I'm using. 
+## Exists
 
-Notice that there are two extra states that we need to keep in mind. *Marked* state means that a thread has designated that node to be deleted, and is in the process of being deleted. It is logically deleted. *FullyLinked* means what it sounds. If a node in the process of being inserted, by default, it is not fullylinked. Once all connections have been made, we can release the locks. This is what is called being in the abstract set (of nodes that are present in the list). You are in the process of being inserted, so you can't be deleted.
+This is basically the search operation but *wait-free*, in the sense that it will not phyiscally remove marked nodes, but rather skip over them, never looking at their values. If a bunch of wait-free "exists" operations were called, then there is still guaranteed per-thread progress, ie, each `exists` by a multiple threads will all succeed around the same time (if they are searching for random numbers).
 
-Now there are 2 implementation details that I need to discuss. 
-
-1) What type of lock will we use? If we use a spinlock, on node 3 for example, and then node 3 inserts a neighbor node 4 with height 3, then the predecessors have changed. Namely, It would be the head, node 4 and node 10. This entails that we must *abort* the operation, otherwise, we wouldn't be able to maintain the skiplist property. This leads me to use a `omp_test_lock`, that returns true if the thread succesfully locked it, otherwise, false. We can put all the functionality in a while loop until abort each time we fail. However, this does not ensure fairness.
-2) What happens if we try to insert a marked node? In my case, I just spin until that node is gone from the list, but you could make the case that we could give a litttle more priority to the deletion where seeing marked node means that we can't insert the node. 
-
-I haven't explained all the details (since that's what the code is for), but gave you a sense in the questions and approaches I was taking.
-
-[^1]: Actually we can avoid locking the successors if we check that prev->next == curr. See code for more details.
-
-## Iteration 2.3 (Fine-Grain `Delete`)
-
-![](imgs/Removing.jpeg)
-
-Delete is actually very simliar to insert, so I won't bore you with the details, except that we don't need to look at the successors. If they change, we can look at the previous node
-s *next* neighbor to reconnect the skiplits.
-
-## Iteration 2.4 (Oh, the bugs I would find!)
-
-I wrote some extensive test cases (see [here](https://github.com/bustin11/parallel-skiplist/tree/fine-grain/tests)), but even with the bugs, I still had to find obscure bugs, some of which would only be available in languages that do NOT do memory management for you.
-
-###  Deleted Memory
-When running test cases, I would pass all of them ... except sometimes I wouldn't. You see, I wrote a script to run the test cases 1000 times, and sometimes it would fail, which tells me that I have a bug :( In fact, this bug occurs rarely so I know I either have a race condition, accessing memory that isn't mine, or something more obscure. 
-
-Using vscodes' GDB (modify the Launch.json file), I was able to look at per-thread memory accesses, stepping through code. Now, it isn't perfect because sometimes the threads would get descheduled, so GDB would be buggy, but other than that, I spent hours searching possibly issues. I narrowed it down to the search function, meaning my locking logic was fine, but my wait-free search was incorrect (this would be a fatal assumption). I checked my search function multiple times but found no errors, until I realized that **there is a possiblity that the node being deleted is being traversed by another thread, thus garbling the memory reference itself**.
-
-Standard protocol informs you to not cry in situations like these, and pray when necessary. I fortunately found a solution to this: `shared_ptrs<Node>`. Shared pointers are new construct in c++ that allows the runtime system to manage which pointers are still in scope. Here is analogy: Suppose I have two brothers, all of whom tend to feed a goldfish that we all own. Now the goldfish is alive as along as *at least* 1 other person is still feeding her. If everyone forgets to feed her, then the goldfish dies, and you cannot possibly ask for the same goldfish alive again. You can see where I'm going here? The gold fish is the address in memory, and my brothers and I are the pointers. Now we can remove every `free` or `c++ delete` operation because the runtime system will handle it for us.
-
-### Forbidden Unlocking
-After fixing the issue, the errors stopped and now I entered the livelock stage. I would run my code, and there wouldn't be output, so when running the debugger, I found that my code was in an infinite loop in `insert`.
-
-Originally, I had a `highestLocked` variable to keep track of which locks were being locked. If a thread failed to grab all locks, I would simply release all until `highestLocked`. Again this is inspired by `The Art of Multiprocessor Design`. But, there isn't a guartentee that you *always* have exclusive permission to unlock your lock. What I mean is that you could accidentally unlock Thread 2's lock if you're Thread 1. Regardless, I made sure to maintain a [sequentual consistency](https://en.wikipedia.org/wiki/Sequential_consistency) model in mind, trying out every valid interleaving order.
-
-Still stumped, I decided to expliciting create a vector that would enumerate over all locks that I know for sure we acquired, and fortunately, it worked.
-
-
-To see the results compared to [sequential](https://github.com/bustin11/parallel-skiplist/tree/sequential), [coarse-grain](https://github.com/bustin11/parallel-skiplist/tree/coarse-grain), go to here [main](https://github.com/bustin11/parallel-skiplist/tree/main)
+To see the results compared to sequential, coarse-grain, fine-grain, go to here main
 
