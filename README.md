@@ -143,5 +143,4 @@ There is actually a very subtle detail for the astute learners. You might be won
 
 This is basically the search operation but *wait-free*, in the sense that it will not phyiscally remove marked nodes, but rather skip over them, never looking at their values. If a bunch of wait-free "exists" operations were called, then there is still guaranteed per-thread progress, ie, each `exists` by a multiple threads will all succeed around the same time (if they are searching for random numbers).
 
-To see the results compared to sequential, coarse-grain, fine-grain, go to here main
-
+To see the results compared to [fine-grain](https://github.com/bustin11/parallel-skiplist/tree/fine-grain), [coarse-grain](https://github.com/bustin11/parallel-skiplist/tree/coarse-grain), [fine-grain](https://github.com/bustin11/parallel-skiplist/tree/fine-grain) go to here [main](https://github.com/bustin11/parallel-skiplist/tree/main)
