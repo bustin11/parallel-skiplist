@@ -76,4 +76,4 @@ First notice that most of the computation is just in searching and array indexin
 
 A fundamental operation of the skiplist (or any data structure) is the search operation. In this case, we see that 61.39% of the samples is the `mov 0x20(%rax),%eax`, the instruction in red. This is what is known as the hottest instruction. Regardless, it's nice to know where most of the operations are going towards, and by doing so we can make tiny differences that lead to huge optimizations, like removing `shared_ptrs`
 
-To see the results compared to [fine-grain](https://github.com/bustin11/parallel-skiplist/tree/fine-grain), [coarse-grain](https://github.com/bustin11/parallel-skiplist/tree/coarse-grain), go to here [main](https://github.com/bustin11/parallel-skiplist/tree/main)
+To see the results compared to [fine-grain](https://github.com/bustin11/parallel-skiplist/tree/fine-grain), [coarse-grain](https://github.com/bustin11/parallel-skiplist/tree/coarse-grain), [lock-free](https://github.com/bustin11/parallel-skiplist/tree/lock-free) go to here [main](https://github.com/bustin11/parallel-skiplist/tree/main)

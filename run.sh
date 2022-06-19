@@ -21,6 +21,6 @@ then
 
     make
     echo $'\n===== Benchmarking performance of skiplist... =====\n'
-    ${PATH_TO}/src/main
+    ${PATH_TO}/src/main -f "output.txt"
 
 fi
