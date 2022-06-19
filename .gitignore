@@ -6,3 +6,7 @@
 objs/
 .vscode
 perf*
+imgs/
+venv/
+tests/*.o
+src/*.o
