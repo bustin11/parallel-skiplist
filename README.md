@@ -47,3 +47,5 @@ Coarse-Grain is an adjective that describes something that is granular but still
 Coarse-grain locking is easy to implement since we just place a big ol' lock over the data structure access itself. For few threads and infrequent accesses, coarse-grain can be worth the small downside of slower access times (than fine-grain) for a very easy implementation.
 
 There won't be too much analysis here, since coarse-grain is a trivial adjustment to sequential implementation (just add a lock).
+
+To see the results compared to [fine-grain](https://github.com/bustin11/parallel-skiplist/tree/fine-grain), [coarse-grain](https://github.com/bustin11/parallel-skiplist/tree/coarse-grain), [lock-free](https://github.com/bustin11/parallel-skiplist/tree/lock-free) go to here [main](https://github.com/bustin11/parallel-skiplist/tree/main)

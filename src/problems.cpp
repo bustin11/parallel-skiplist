@@ -4,8 +4,17 @@
 #include <stdlib.h>
 #include <time.h>
 #include <assert.h>
+#include <iostream>
+#include <fstream>
 
-void prob_size(int numThreads, int size) {
+void write_to_file(int size, float time, std::string desc, std::string fileName) {
+    FILE* fp;
+    fp = fopen(fileName.c_str(), "a");
+    fprintf(fp, "size=%d, %s=%f\n", size, desc.c_str(), time);
+    fclose(fp);
+}
+
+void prob_size(int numThreads, int size, std::string fileName) {
 
     srand(time(NULL));
     double insert_avgTime = 0;
@@ -46,11 +55,12 @@ void prob_size(int numThreads, int size) {
     delete_avgTime /= (3 * CLOCKS_PER_SEC);
     printf("\n[%d insertions (3x avg)]: %f\n", size, insert_avgTime);
     printf("[%d deletions] (3x avg): %f\n", size, delete_avgTime);
-
+    write_to_file(size, insert_avgTime, "insert time", fileName);
+    write_to_file(size, delete_avgTime, "delete time", fileName);
 }
 
 
-void prob_size_mixed(int numThreads, int size, float p) {
+void prob_size_mixed(int numThreads, int size, float p, std::string fileName) {
 
     srand(time(NULL));
     double avgTime = 0;
@@ -83,5 +93,5 @@ void prob_size_mixed(int numThreads, int size, float p) {
     }
     avgTime /= (3 * CLOCKS_PER_SEC);
     printf("\n[%d ins/del (3x avg)]: %f\n", size, (avgTime) / 3);
-
+    write_to_file(size, avgTime, "ins/del time", fileName);
 }
