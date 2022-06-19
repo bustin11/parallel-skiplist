@@ -168,5 +168,5 @@ Originally, I had a `highestLocked` variable to keep track of which locks were b
 Still stumped, I decided to expliciting create a vector that would enumerate over all locks that I know for sure we acquired, and fortunately, it worked.
 
 
-To see the results compared to [sequential](https://github.com/bustin11/parallel-skiplist/tree/sequential), [coarse-grain](https://github.com/bustin11/parallel-skiplist/tree/coarse-grain), go to here [main](https://github.com/bustin11/parallel-skiplist/tree/main)
+To see the results compared to [sequential](https://github.com/bustin11/parallel-skiplist/tree/sequential), [coarse-grain](https://github.com/bustin11/parallel-skiplist/tree/coarse-grain), [lock-free](https://github.com/bustin11/parallel-skiplist/tree/lock-free) go to here [main](https://github.com/bustin11/parallel-skiplist/tree/main)
 
