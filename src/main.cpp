@@ -12,6 +12,7 @@ struct mainArgs_t {
     int help;
     int numThreads;
     float p;
+    std::string fileName;
 } mainArgs;
 
 
@@ -21,7 +22,8 @@ void print_usage () {
         "Options:\n"
         "  -h           Print this help message.\n"
         "  -N <Threads> Number of threads to launch\n\n"
-        "  -p <prob>    Probability of Insertion\n\n"
+        "  -p <prob>    Probability of Insertion\n"
+        "  -f <file>    Output file results\n\n"
         "DESCRIPTION:\n"
         "benchmarks the concurrent skiplist implementation"
         "on 2 different axes: \n\n"
@@ -41,8 +43,8 @@ int main(int argc, char** argv) {
 
     int opt;
     mainArgs.numThreads = 1;
-    mainArgs.p = .5;
-    while ((opt = getopt(argc, argv, "hN:p:")) != -1) {
+    mainArgs.fileName = "";
+    while ((opt = getopt(argc, argv, "hN:p:f:")) != -1) {
         switch (opt) {
             case 'h':
                 print_usage();
@@ -53,6 +55,8 @@ int main(int argc, char** argv) {
             case 'p':
                 mainArgs.p = atof(optarg);
                 break;
+            case 'f':
+                mainArgs.fileName = optarg;
         }
     }
 
@@ -63,7 +67,7 @@ int main(int argc, char** argv) {
     printf("===================== Problem size: =====================\n");
     printf("===================== ------------- =====================\n");
     for (int size : sizes) {
-        prob_size(mainArgs.numThreads, size);
+        prob_size(mainArgs.numThreads, size, mainArgs.fileName);
     }
     printf("========================> Done.\n\n");
 
@@ -71,7 +75,7 @@ int main(int argc, char** argv) {
     printf("================= Problem size (mixed): =================\n");
     printf("=================---------------------- =================\n");
     for (int size : sizes) {
-        prob_size_mixed(mainArgs.numThreads, size, mainArgs.p);
+        prob_size_mixed(mainArgs.numThreads, size, mainArgs.p, mainArgs.fileName);
     }
 
     printf("========================> Done.\n\n");

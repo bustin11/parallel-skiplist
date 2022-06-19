@@ -9,3 +9,4 @@ perf*
 src/*.o
 tests/*.o
 imgs/
+venv/
