@@ -21,8 +21,11 @@ then
 
     make
     echo $'\n===== Benchmarking performance of skiplist... =====\n'
+    echo $'threads=1' >> 'output.txt'
     ${PATH_TO}/src/main -N 1 -f "output.txt"
+    echo $'threads=2' >> 'output.txt'
     ${PATH_TO}/src/main -N 2 -f "output.txt"
+    echo $'threads=4' >> 'output.txt'
     ${PATH_TO}/src/main -N 4 -f "output.txt"
 
 fi
