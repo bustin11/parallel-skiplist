@@ -3,6 +3,7 @@
 #define _HELPERS_H
 
 #include <stdlib.h>
+#include <algorithm>
 
 /*
 @param maxHeight: height of the tallest node ("tower") in the skiplist. 

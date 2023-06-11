@@ -1,6 +1,8 @@
 
-#include "problems.h"
-#include "../skiplist.h"
+// #include "problems.h"
+// #include "src/skiplist.h"
+#include"skiplist.h"
+#include"problems.h"
 
 #include <stdio.h>
 #include <assert.h>
@@ -48,7 +50,10 @@ int main(int argc, char** argv) {
         }
     }
 
-    std::vector<int> sizes{10000, 20000, 30000};
+    std::vector<int> sizes;
+    sizes.push_back(10000);
+    sizes.push_back(20000);
+    sizes.push_back(30000);
     printf("Number of threads:%d\n", mainArgs.numThreads);
 
     printf("===================== ------------- =====================\n");

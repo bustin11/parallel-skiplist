@@ -9,9 +9,12 @@
 #include <atomic>
 #include <memory>
 
+// #include "skiplist.h"
+// #include "helpers/debug.h"
+// #include "helpers/helpers.h"
 #include "skiplist.h"
-#include "helpers/debug.h"
-#include "helpers/helpers.h"
+#include "../helpers/debug.h"
+#include "../helpers/helpers.h"
 
 
 SkipList::SkipList() {
@@ -109,7 +112,7 @@ void SkipList::printList () const {
 
 
     // find the offsets for printing based on level 0
-    std::vector<std::pair<int, Node*>> offsets;
+    std::vector<std::pair<int, Node*> > offsets;
     Node* curr = this->head->next[0];
     int offset = 0;
     while (curr) {

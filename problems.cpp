@@ -1,5 +1,5 @@
 
-#include "../skiplist.h"
+#include "skiplist.h"
 
 #include <stdlib.h>
 #include <time.h>
@@ -8,6 +8,10 @@
 #include <fstream>
 
 void write_to_file(int size, float time, std::string desc, std::string fileName) {
+    if (fileName.empty()) {
+        printf("size=%d, %s=%f\n", size, desc.c_str(), time);
+        return;
+    }
     FILE* fp;
     fp = fopen(fileName.c_str(), "a");
     fprintf(fp, "size=%d, %s=%f\n", size, desc.c_str(), time);
@@ -64,7 +68,7 @@ void prob_size_mixed(int numThreads, int size, float p, std::string fileName) {
     srand(time(NULL));
     double avgTime = 0;
 
-    auto biased_coin_flip = [](float p){
+    auto biased_coin_flip = [&](float p){
         return rand()/RAND_MAX < p;
     };
 
