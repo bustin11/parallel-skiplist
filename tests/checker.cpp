@@ -1,6 +1,6 @@
 
 #include "test.h"
-#include "../skiplist.h"
+#include "../src/skiplist.h"
 
 #include <stdio.h>
 #include <assert.h>

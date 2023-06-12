@@ -1,13 +1,28 @@
 
 #include "test.h"
 #include "../helpers/debug.h"
-#include "../skiplist.h"
+#include "../src/skiplist.h"
 
 #include <stdio.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <time.h>
 
+#include <gtest/gtest.h>
+
+TEST(Test, test1) {
+
+    printf("Test 1[Simple]: \n");
+
+    SkipList* slist = new SkipList();
+    printdebug("Insertion")
+    slist->insert(11); // height == 1
+    printdebug("Printing")
+    slist->printList();
+    printdebug("Checking")
+    bool valid = slist->search(11);
+    ASSERT_TRUE(valid);
+}
 
 bool test1() {
 
