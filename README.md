@@ -18,7 +18,7 @@ sudo apt-get install libomp-dev
 **openMP** is a library that offers support for seamless parallelization through thread launching. As the programmer, you only need to identify parts of your code feeble for parallelization, while the library itself is an abstractions that helps with loop indexing, thread launching, built-in locks, and is portable on different os, making it a nice option for users who don't care about hardware optimations for every different machine. 
 
 # How to Run
-from root
+from root (no cmake or gtest)
 ```
 # for just testing
 make test
@@ -29,12 +29,14 @@ src/main -N <numThreads> -T <problem id>
 # for testing and benchmarking
 # ./run.sh
 ```
-With cmake, start from root:
+With cmake + gtest, start from root:
 ```
-# for just testing
-mkdir build
-cmake -S . -B build
-make -C build
+./configure.sh
+./build.sh
+cd build
+make test # runs tests
+ctest # runs tests
+./main # runs file
 ```
 # Description
 
