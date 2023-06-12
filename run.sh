@@ -1,5 +1,5 @@
 #!/bin/bash
-
+# to be used with the top level makefile that i made my own, not with cmake
 PATH_TO=${HOME}/parallel-skiplist
 
 set -o xtrace   # print cmds
